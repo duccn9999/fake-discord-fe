@@ -1,0 +1,18 @@
+.selection {
+  background-color: rgb(22, 97, 168);
+  height: 6vh;
+  grid-column: 1 / 5;
+}
+
+.chatContent p {
+  margin: 0px;
+  padding: 0px;
+}
+
+.avatar img{
+    border-radius: 50%;
+}
+
+.chatComponent{
+    padding: 0 0 10px;
+}

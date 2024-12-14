@@ -36,3 +36,97 @@
     transform: rotate(360deg);
   }
 }
+
+.dFlex {
+  display: flex;
+}
+.dInlineBlock {
+  display: inline-block;
+}
+.dBlock {
+  display: block;
+}
+.justifyEvenly {
+  justify-content: space-evenly;
+}
+.justifySpaceAround {
+  justify-content: space-around;
+}
+.justifyFlexStart {
+  justify-content: flex-start;
+}
+.justifyFlexEnd {
+  justify-content: flex-end;
+}
+.formContainer {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+.inputGroup {
+  margin-bottom: 10px;
+  width: 100%;
+}
+.inputGroup label {
+  display: block;
+  text-align: left;
+}
+input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+.gridContainer {
+  display: grid;
+  grid-template-columns: 20% 80%; /* Two equal columns */
+  grid-template-rows: 1fr; /* Single row */
+  height: 100vh; /* Full viewport height */
+}
+
+.btn {
+  padding: 10px;
+  border-radius: 5px;
+  border-style: none;
+}
+
+.btn:hover{
+  cursor: pointer;
+}
+
+.btnDanger {
+  background-color: #d9534f;
+  color: white;
+}
+.btnPrimary{
+  background-color: #0275d8;
+  color: white;
+}
+.btnInfo{
+  background-color: #5bc0de;
+  color: white;
+}
+.btnSuccess{
+  background-color: #5cb85c;
+  color: white;
+}
+.btnWarning{
+  background-color: #f0ad4e;
+  color: white;
+}
+.btnInverse{
+  background-color: #292b2c;
+  color: white;
+}
+.btnFaded{
+  background-color: #f7f7f7;
+  color: white;
+}
+.bgHardBlack{
+  background-color: #1e1f22;
+}
+.bgSoftBlack{
+  background-color: #313338;
+}
+
