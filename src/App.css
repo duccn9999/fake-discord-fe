@@ -94,39 +94,88 @@ input {
 .btn:hover{
   cursor: pointer;
 }
-
 .btnDanger {
   background-color: #d9534f;
-  color: white;
 }
 .btnPrimary{
   background-color: #0275d8;
-  color: white;
 }
 .btnInfo{
   background-color: #5bc0de;
-  color: white;
 }
 .btnSuccess{
   background-color: #5cb85c;
-  color: white;
 }
 .btnWarning{
   background-color: #f0ad4e;
-  color: white;
 }
 .btnInverse{
   background-color: #292b2c;
-  color: white;
 }
 .btnFaded{
+  border-color: #292b2c;
   background-color: #f7f7f7;
-  color: white;
 }
 .bgHardBlack{
   background-color: #1e1f22;
 }
 .bgSoftBlack{
   background-color: #313338;
+}
+
+svg{
+  width: 2em;
+  height: 2em;
+}
+
+.btnRounded{
+  border-radius: 50%;
+}
+
+form{
+  border: 1px solid black;
+  padding: 6vh;
+  border-radius: 4vh;
+  background-color: white;
+}
+
+.posRelavive{
+  position: relative;
+}
+
+.posAbsolute{
+  position: absolute;
+}
+.left50{
+  left: 50%;
+}
+.right50{
+  right: 50%;
+}
+.top50{
+  top: 50%;
+}
+.botton50{
+  bottom: 50%;
+}
+.centerWithTransform {
+  position: absolute;
+  top: var(--top, 50%); /* Default to 50%, customizable */
+  left: var(--left, 50%); /* Default to 50%, customizable */
+  transform: translate(
+    calc(var(--translate-x, -50%)),
+    calc(var(--translate-y, -50%))
+  ); /* Customizable translate values */
+}
+
+.overlay{
+  position: fixed; /* Ensures it stays relative to the viewport */
+  top: 0; /* Aligns the top edge with the top of the viewport */
+  left: 0; /* Aligns the left edge with the left of the viewport */
+  width: 100%; /* Covers the full width of the viewport */
+  height: 100%; /* Covers the full height of the viewport */
+  background-color: black; /* Background color */
+  z-index: 1000; /* Ensure it's on top of other elements */
+  opacity: 0.8; /* Optional: Makes it slightly transparent */
 }
 

@@ -1,20 +1,20 @@
 import loginStyles from "./Login.module.css";
 import { Outlet, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import COMMON from "../../Common";
 import $ from "jquery";
 
 function Login({session, setSession }) {
+  const [UserName, setUserName] = useState(null);
+  const [Password, setPassword] = useState(null);
   if(session){
     return <Navigate to={"/home"}/>
   }
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const UserName = $("#username").val();
-    const Password = $("#password").val();
-
     $.ajax({
-      url: "https://localhost:7065/Authentication/Login",
+      url: `${COMMON.API_BASE_URL}Authentication/Login`,
       type: "POST",
       contentType: "application/json", // Specify JSON format
       data: JSON.stringify({ UserName, Password }), // Convert data to JSON string
@@ -34,14 +34,14 @@ function Login({session, setSession }) {
         <h1>Login</h1>
         <div className="inputGroup">
           <label htmlFor="username">Username</label>
-          <input type="text" id="username" required />
+          <input type="text" id="username" required onChange={(e) => setUserName(e.target.value)}/>
         </div>
         <div className="inputGroup">
           <label htmlFor="password">Password</label>
-          <input type="password" id="password" required />
+          <input type="password" id="password" required onChange={(e) => setPassword(e.target.value)} />
         </div>
         <div className="inputGroup">
-          <button type="submit" className="btn btnRed">Submit</button>
+          <button type="submit" className="btn btnDanger">Submit</button>
         </div>
         <div>
           Dont have an account? <Link to="/signup">Create now</Link>
