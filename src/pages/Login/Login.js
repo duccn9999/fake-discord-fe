@@ -1,4 +1,4 @@
-import loginStyles from "./Login.module.css";
+import Styles from "./Login.module.css";
 import { Outlet, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import COMMON from "../../Common";
@@ -30,7 +30,7 @@ function Login({session, setSession }) {
 
   return (
     <div className="formContainer">
-      <form id={loginStyles.loginForm} onSubmit={handleSubmit}>
+      <form id={Styles.loginForm} onSubmit={handleSubmit}>
         <h1>Login</h1>
         <div className="inputGroup">
           <label htmlFor="username">Username</label>

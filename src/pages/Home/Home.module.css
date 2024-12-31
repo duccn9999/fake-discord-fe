@@ -9,14 +9,23 @@
   padding: 0px;
 }
 
-.avatar img{
-    border-radius: 50%;
+.avatar img {
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
 }
 
-.chatComponent{
-    padding: 0 0 10px;
+.chatComponent {
+  padding: 0 0 10px;
 }
 
-.coverImage{
+.coverImage {
   padding-left: 0;
+}
+.chatComponent:hover {
+  background-color: #313338;
+}
+.groupChatTitle {
+  margin: 0 auto;
+  padding: 18.720px;
 }

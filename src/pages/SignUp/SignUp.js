@@ -1,9 +1,9 @@
-import signUpStyles from "./SignUp.module.css";
+import Styles from "./SignUp.module.css";
 import { Outlet, Link } from "react-router-dom";
 function SignUp(params) {
   return (
     <div className="formContainer">
-      <form id={signUpStyles.signUpForm}>
+      <form id={Styles.signUpForm}>
         <h1>Signup</h1>
         <div className="inputGroup">
           <label htmlFor="username">Username</label>

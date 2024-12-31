@@ -58,6 +58,13 @@
 .justifyFlexEnd {
   justify-content: flex-end;
 }
+
+.alignCenter{
+  align-items: center;
+}
+.alignFlexStart{
+  align-items: flex-start;
+}
 .formContainer {
   display: grid;
   place-items: center;
@@ -80,19 +87,18 @@ input {
 }
 .gridContainer {
   display: grid;
-  grid-template-columns: 20% 80%; /* Two equal columns */
+  grid-template-columns: 10% 90%; /* Two equal columns */
   grid-template-rows: 1fr; /* Single row */
   height: 100vh; /* Full viewport height */
 }
-
+.rightSided{
+  display: grid;
+  grid-template-columns: 15% 85%; /* Two equal columns */
+}
 .btn {
   padding: 10px;
   border-radius: 5px;
   border-style: none;
-}
-
-.btn:hover{
-  cursor: pointer;
 }
 .btnDanger {
   background-color: #d9534f;
@@ -116,13 +122,39 @@ input {
   border-color: #292b2c;
   background-color: #f7f7f7;
 }
-.bgHardBlack{
+.bgBlack1{
   background-color: #1e1f22;
 }
-.bgSoftBlack{
+.bgBlack2{
   background-color: #313338;
 }
-
+.bgBlack3{
+  background-color: #2b2d31;
+}
+.bgBlack4{
+  background-color: #404249;
+}
+.textDanger{
+  color: #d9534f;
+}
+.textPrimary{
+  color: #0275d8;
+}
+.textInfo{
+  color: #5bc0de;
+}
+.textSuccess{
+  color: #5cb85c;
+}
+.textWarning{
+color: #f0ad4e;
+}
+.textInverse{
+  color: #292b2c;
+}
+.textFaded{
+  color: #f7f7f7;
+}
 svg{
   width: 2em;
   height: 2em;
@@ -139,7 +171,7 @@ form{
   background-color: white;
 }
 
-.posRelavive{
+.posRelative{
   position: relative;
 }
 
@@ -155,7 +187,7 @@ form{
 .top50{
   top: 50%;
 }
-.botton50{
+.button50{
   bottom: 50%;
 }
 .centerWithTransform {
@@ -179,3 +211,10 @@ form{
   opacity: 0.8; /* Optional: Makes it slightly transparent */
 }
 
+.borderNone{
+  border: none;
+}
+
+button:hover{
+  cursor: pointer;
+}

@@ -6,12 +6,13 @@ import Loading from "./pages/Loading/Loading";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import SignUp from "./pages/SignUp/SignUp";
+import COMMON from "./Common";
 function Navigator() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   // Sync session with localStorage
   useEffect(() => {
-    const storedSession = localStorage.getItem("session");
+    const storedSession = COMMON.SESSION;
     setSession(storedSession);
     setLoading(false);
   }, []);

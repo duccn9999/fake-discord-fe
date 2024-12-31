@@ -1,15 +1,14 @@
-import homeStyles from "./Home.module.css";
-import { FiAlignJustify } from "react-icons/fi";
+import Styles from "./Home.module.css";
 import { Navigate } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import $ from "jquery";
 import COMMON from "../../Common";
-function OpenCreateGroupChatForm({ isOpen, onClose }) {
+function CreateGroupChatForm({ isOpen, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [groupChatName, setGroupChatName] = useState(null);
-  const [coverImage, setCoverImage] = useState(null);
+  let user = COMMON.JwtDecode();
   // Handle preview image
   useEffect(() => {
     if (!file) {
@@ -18,28 +17,62 @@ function OpenCreateGroupChatForm({ isOpen, onClose }) {
     }
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
+    return () => setPreview(undefined);
   }, [file]);
   // Handle file input change
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
   };
   // Create group chat process
-  const createGroupChat = (e) => {
+  const createGroupChat = async (e) => {
     e.preventDefault();
-    $.ajax({
-      url: `${COMMON.API_BASE_URL}GroupChat/Create`,
-      type: "POST",
-      contentType: "application/json",
-      data: JSON.stringify({ groupChatName, coverImage }),
-      success: function (data) {
-        console.log(data);
-      },
-      error: function (xhr, status, error) {
-        console.error("Error:", xhr.responseText);
-      },
-    });
+    // Upload image to Cloudinary
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", "duccn123");
+    data.append("cloud_name", "dywexvvcy");
+
+    try {
+      // Wait for the image upload to complete
+      const response = await fetch(
+        "https://api.cloudinary.com/v1_1/dywexvvcy/image/upload",
+        {
+          method: "POST",
+          body: data,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Image upload failed");
+      }
+
+      const coverImage = await response.json(); // Wait for the response to be parsed as JSON
+      console.log("Image uploaded successfully:", coverImage);
+
+      // After the image is uploaded, proceed with creating the group chat
+      $.ajax({
+        url: `${COMMON.API_BASE_URL}GroupChat/Create`,
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          Name: groupChatName,
+          CoverImage: coverImage.secure_url, // Use the uploaded image URL
+          userCreated: user.id,
+        }),
+        success: function (data) {
+          console.log(data);
+          onClose(true); // Close the modal or perform any other actions
+        },
+        error: function (xhr, status, error) {
+          $(".error").html(`Error creating group chat: ${xhr.responseText}`);
+        },
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      $(".error").html(`Error uploading image: ${error.message}`);
+    }
   };
+
   if (!isOpen) return null;
   return (
     <>
@@ -50,6 +83,7 @@ function OpenCreateGroupChatForm({ isOpen, onClose }) {
         >
           <form onSubmit={createGroupChat}>
             <h2>Create Group Chat</h2>
+            <p className="error textDanger"></p>
             <div className="inputGroup">
               <label htmlFor="groupChatName">Group chat Name</label>
               <input
@@ -63,7 +97,7 @@ function OpenCreateGroupChatForm({ isOpen, onClose }) {
               <input
                 type="file"
                 id="coverImage"
-                className={homeStyles.coverImage}
+                className={Styles.coverImage}
                 onChange={handleFileChange}
                 accept="image/*"
               />
@@ -74,7 +108,6 @@ function OpenCreateGroupChatForm({ isOpen, onClose }) {
                   src={preview}
                   alt="Preview"
                   style={{ maxWidth: "100%", maxHeight: "200px" }}
-                  onChange={(e) => setCoverImage(e.target.src)}
                 />
               </div>
             )}
@@ -89,33 +122,47 @@ function OpenCreateGroupChatForm({ isOpen, onClose }) {
     </>
   );
 }
-function ChatContainer({ isOpen, setOpen }) {
+function GroupChatsContainer({ setClick, setGroupChatId }) {
   const [joinedGroupChats, setJoinedGroupChats] = useState(null);
-  let token = window.localStorage.getItem("session");
+  let user = COMMON.JwtDecode();
   // Handle display joined groupChat
-  const loadJoinedGroupChats = useEffect(() => {
+  useEffect(() => {
     $.ajax({
-      url: `${COMMON.API_BASE_URL}/GroupChat/GetJoinedGroupChats/${token}`,
+      url: `${COMMON.API_BASE_URL}GroupChat/GetJoinedGroupChats/${user.id}`,
       type: "GET",
       contentType: "application/json",
       success: function (data) {
         setJoinedGroupChats(data);
       },
+      error: function (error) {
+        console.error("Error fetching joined group chats:", error);
+      },
     });
-  }, joinedGroupChats);
+  }, [joinedGroupChats, user.id]);
+  // Handle hover on groupChat
   if (!joinedGroupChats) {
     return;
   }
   return (
-    <div className="chatsContainer" onLoad={loadJoinedGroupChats}>
+    <div className="groupChatsContainer">
       {joinedGroupChats.map((groupChat) => (
-        <div key={groupChat.id} className={`${homeStyles.chatComponent}`}>
-          <div className={`${homeStyles.avatar} dInlineBlock`}>
-            <img src={groupChat.coverImage} />
+        <div
+          key={groupChat.groupChatId}
+          className={`${Styles.chatComponent}`}
+          onClick={() => {
+            setClick(true);
+            setGroupChatId(groupChat.groupChatId);
+          }}
+        >
+          <div className={`${Styles.avatar} dInlineBlock`}>
+            <img
+              src={groupChat.coverImage}
+              alt={`img-${groupChat.groupChatId}`}
+            />
           </div>
           <div className="dInlineBlock">
             <div className="chatName">
-              <strong>{groupChat.name}</strong>
+              <strong className="textFaded">{groupChat.name}</strong>
             </div>
           </div>
         </div>
@@ -123,19 +170,69 @@ function ChatContainer({ isOpen, setOpen }) {
     </div>
   );
 }
+function ChannelsContainer({ groupChatId }) {
+  const [channels, setChannels] = useState(null);
+  useEffect(() => {
+    $.ajax({
+      url: `${COMMON.API_BASE_URL}Channels/${groupChatId}`,
+      method: "GET",
+      contentType: "application/json",
+      success: function (data) {
+        console.log(data);
+        setChannels(data);
+      },
+      error: function (xhr, error, status) {
+        console.log(xhr.responseText);
+      },
+    });
+  }, [groupChatId]);
+  if(!channels){
+    return;
+  }
+  return channels.map((channel) => 
+  <div key={channel.channelId}>
+    <button className="bgBlack4 textFaded">{channel.channelName}</button>    
+  </div>);
+}
+function GroupChatContent({ id, isDisplay }) {
+  const [groupChat, setGroupChat] = useState(null);
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
+  }, [id]);
+  if (!isDisplay) {
+    return;
+  }
+  return (
+    <>
+      <div className="header bgBlack3">
+        <h3 className={`textFaded ${Styles.groupChatTitle}`}>{id}</h3>
+        <button className="bgBlack3 textFaded borderNone">Add Channels <FaPlus style={{width: "10px", height: "10px"}}/></button>
+        <ChannelsContainer groupChatId={id}/>
+      </div>
+      <div className="content"></div>
+    </>
+  );
+}
 function Home({ session }) {
   const [isOpen, setOpen] = useState(false);
+  const [isClicked, setClick] = useState(false);
+  const [groupChatId, setGroupChatId] = useState();
+  let user = COMMON.JwtDecode();
   if (!session) {
     return <Navigate to={"/"} />;
   }
   return (
     <>
       <div className="gridContainer posRelative">
-        <div className={"bgHardBlack"}>
-          <div>
-            <FiAlignJustify />
-          </div>
-          <ChatContainer isOpen={isOpen} setOpen={setOpen} />
+        <div className={"bgBlack1 leftSided"}>
+          <h3 className="textFaded">Hello, {user.username}!</h3>
+          <GroupChatsContainer
+            isClicked={isClicked}
+            setClick={setClick}
+            setGroupChatId={setGroupChatId}
+          />
           <button
             className="btn btnRounded btnFaded"
             onClick={() => setOpen(!isOpen)}
@@ -143,9 +240,12 @@ function Home({ session }) {
             <FaPlus />
           </button>
         </div>
-        <div className={"bgSoftBlack"}></div>
+        <div className={"bgBlack2 rightSided"}>
+          {/* chat content here */}
+          <GroupChatContent id={groupChatId} isDisplay={isClicked} />
+        </div>
       </div>
-      <OpenCreateGroupChatForm isOpen={isOpen} onClose={() => setOpen(false)} />
+      <CreateGroupChatForm isOpen={isOpen} onClose={() => setOpen(false)} />
     </>
   );
 }
