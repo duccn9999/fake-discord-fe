@@ -40,6 +40,9 @@
 .dFlex {
   display: flex;
 }
+.dGrid{
+  display: grid;
+}
 .dInlineBlock {
   display: inline-block;
 }

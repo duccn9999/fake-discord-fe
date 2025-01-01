@@ -4,6 +4,28 @@ import { FaPlus } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import $ from "jquery";
 import COMMON from "../../Common";
+import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
+function GroupChat({ groupChat, setGroupChatClick, setGroupChatId }) {
+  return (
+    <div
+      key={groupChat.groupChatId}
+      className={`${Styles.chatComponent}`}
+      onClick={() => {
+        setGroupChatClick(true);
+        setGroupChatId(groupChat.groupChatId);
+      }}
+    >
+      <div className={`${Styles.avatar} dInlineBlock`}>
+        <img src={groupChat.coverImage} alt={`img-${groupChat.groupChatId}`} />
+      </div>
+      <div className="dInlineBlock">
+        <div className="chatName">
+          <strong className="textFaded">{groupChat.name}</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
 function CreateGroupChatForm({ isOpen, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -122,7 +144,7 @@ function CreateGroupChatForm({ isOpen, onClose }) {
     </>
   );
 }
-function GroupChatsContainer({ setClick, setGroupChatId }) {
+function GroupChatsContainer({ setGroupChatClick, setGroupChatId }) {
   const [joinedGroupChats, setJoinedGroupChats] = useState(null);
   let user = COMMON.JwtDecode();
   // Handle display joined groupChat
@@ -146,31 +168,84 @@ function GroupChatsContainer({ setClick, setGroupChatId }) {
   return (
     <div className="groupChatsContainer">
       {joinedGroupChats.map((groupChat) => (
-        <div
+        <GroupChat
           key={groupChat.groupChatId}
-          className={`${Styles.chatComponent}`}
-          onClick={() => {
-            setClick(true);
-            setGroupChatId(groupChat.groupChatId);
-          }}
-        >
-          <div className={`${Styles.avatar} dInlineBlock`}>
-            <img
-              src={groupChat.coverImage}
-              alt={`img-${groupChat.groupChatId}`}
-            />
-          </div>
-          <div className="dInlineBlock">
-            <div className="chatName">
-              <strong className="textFaded">{groupChat.name}</strong>
-            </div>
-          </div>
-        </div>
+          groupChat={groupChat}
+          setGroupChatClick={setGroupChatClick}
+          setGroupChatId={setGroupChatId}
+        />
       ))}
     </div>
   );
 }
-function ChannelsContainer({ groupChatId }) {
+
+function GroupChatContent({ groupChatId, isGroupChatClicked }) {
+  const [isChannelExist, setChannelExist] = useState(true);
+  const [isChannelClicked, setChannelClick] = useState(false);
+  const [groupChat, setGroupChat] = useState(null);
+  useEffect(() => {
+    const fetchGroupChat = async () => {
+      if (isGroupChatClicked && groupChatId) {
+        try {
+          console.log(`Fetching group chat with ID: ${groupChatId}`);
+          const response = await fetch(`${COMMON.API_BASE_URL}GroupChat/GetGroupChatById/${groupChatId}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+          }
+          const data = await response.json();
+          console.log("GroupChat data fetched:", data);
+          setGroupChat(data);
+        } catch (error) {
+          console.error("Error fetching group chat:", error.message);
+        }
+      } else {
+        setGroupChat(null);
+      }
+    };
+
+    fetchGroupChat();
+  }, [groupChatId, isGroupChatClicked]);
+  if (!groupChatId) {
+    return;
+  }
+  return (
+    <>
+      <div className="header bgBlack3">
+        <h3 className={`textFaded ${Styles.groupChatTitle}`}>{groupChat ? groupChat.name : "loading..."}</h3>
+        <button className="bgBlack3 textFaded borderNone">
+          Add Channels <FaPlus style={{ width: "10px", height: "10px" }} />
+        </button>
+        <ChannelsContainer
+          groupChatId={groupChatId}
+          setChannelExist={setChannelExist}
+          setChannelClick={setChannelClick}
+        />
+      </div>
+      <div className="content">
+        {!isChannelExist ? <MessageSectionNotFound /> : null}
+        {isChannelClicked ? <MessageContainer groupChat={groupChat}/> : null}
+      </div>
+    </>
+  );
+}
+function Channel({ channel, setChannelClick }) {
+  return (
+    <div>
+      <button
+        className="bgBlack4 textFaded"
+        onClick={() => setChannelClick(true)}
+      >
+        {channel.channelName}
+      </button>
+    </div>
+  );
+}
+function ChannelsContainer({ groupChatId, setChannelExist, setChannelClick }) {
   const [channels, setChannels] = useState(null);
   useEffect(() => {
     $.ajax({
@@ -179,45 +254,33 @@ function ChannelsContainer({ groupChatId }) {
       contentType: "application/json",
       success: function (data) {
         console.log(data);
+        !data || data.length === 0
+          ? setChannelExist(false)
+          : setChannelExist(true);
         setChannels(data);
       },
       error: function (xhr, error, status) {
         console.log(xhr.responseText);
       },
     });
-  }, [groupChatId]);
-  if(!channels){
+  }, [groupChatId, setChannelExist]);
+  if (!channels || channels.length === 0) {
     return;
   }
-  return channels.map((channel) => 
-  <div key={channel.channelId}>
-    <button className="bgBlack4 textFaded">{channel.channelName}</button>    
-  </div>);
+  return channels.map((channel) => (
+    <Channel
+      key={channel.channelId}
+      channel={channel}
+      setChannelClick={setChannelClick}
+    />
+  ));
 }
-function GroupChatContent({ id, isDisplay }) {
-  const [groupChat, setGroupChat] = useState(null);
-  useEffect(() => {
-    if (!id) {
-      return;
-    }
-  }, [id]);
-  if (!isDisplay) {
-    return;
-  }
-  return (
-    <>
-      <div className="header bgBlack3">
-        <h3 className={`textFaded ${Styles.groupChatTitle}`}>{id}</h3>
-        <button className="bgBlack3 textFaded borderNone">Add Channels <FaPlus style={{width: "10px", height: "10px"}}/></button>
-        <ChannelsContainer groupChatId={id}/>
-      </div>
-      <div className="content"></div>
-    </>
-  );
+function MessageContainer({groupChat}) {
+  return <h1>{groupChat.name}</h1>;
 }
 function Home({ session }) {
   const [isOpen, setOpen] = useState(false);
-  const [isClicked, setClick] = useState(false);
+  const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [groupChatId, setGroupChatId] = useState();
   let user = COMMON.JwtDecode();
   if (!session) {
@@ -229,8 +292,8 @@ function Home({ session }) {
         <div className={"bgBlack1 leftSided"}>
           <h3 className="textFaded">Hello, {user.username}!</h3>
           <GroupChatsContainer
-            isClicked={isClicked}
-            setClick={setClick}
+            setGroupChatClick={setGroupChatClick}
+            isGroupChatClicked={isGroupChatClicked}
             setGroupChatId={setGroupChatId}
           />
           <button
@@ -242,7 +305,12 @@ function Home({ session }) {
         </div>
         <div className={"bgBlack2 rightSided"}>
           {/* chat content here */}
-          <GroupChatContent id={groupChatId} isDisplay={isClicked} />
+          {isGroupChatClicked ? (
+            <GroupChatContent
+              groupChatId={groupChatId}
+              isGroupChatClicked={isGroupChatClicked}
+            />
+          ) : null}
         </div>
       </div>
       <CreateGroupChatForm isOpen={isOpen} onClose={() => setOpen(false)} />
