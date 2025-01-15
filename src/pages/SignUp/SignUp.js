@@ -3,7 +3,7 @@ import { Outlet, Link } from "react-router-dom";
 function SignUp(params) {
   return (
     <div className="formContainer">
-      <form id={Styles.signUpForm}>
+      <form id={Styles.signUpForm} className="form">
         <h1>Signup</h1>
         <div className="inputGroup">
           <label htmlFor="username">Username</label>

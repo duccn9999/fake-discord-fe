@@ -29,3 +29,11 @@
   margin: 0 auto;
   padding: 18.72px;
 }
+
+.channel {
+  border: none;
+  width: 90%;
+  padding: 9px 10px 9px 10px;
+  margin-bottom: 6px;
+  border-radius: 5px;
+}

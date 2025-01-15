@@ -1,18 +1,29 @@
 import Styles from "./Home.module.css";
 import { Navigate } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import $ from "jquery";
-import COMMON from "../../Common";
+import COMMON from "../../utils/Common";
 import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
-function GroupChat({ groupChat, setGroupChatClick, setGroupChatId }) {
+import { Channel } from "./Channel";
+import { MessageContainer } from "./MessageContainer";
+import useInfiniteScroll from "../../hooks/infiniteScroll";
+import axios from "axios";
+import groupChatReducer,{INITIAL_STATE} from "../../reducers/groupChatReducer";
+import connection from "../../utils/signalR";
+function GroupChat({
+  groupChat,
+  setGroupChatClick,
+  setGroupChatId,
+  setChannelClick,
+}) {
   return (
     <div
-      key={groupChat.groupChatId}
       className={`${Styles.chatComponent}`}
       onClick={() => {
         setGroupChatClick(true);
         setGroupChatId(groupChat.groupChatId);
+        setChannelClick(false);
       }}
     >
       <div className={`${Styles.avatar} dInlineBlock`}>
@@ -26,10 +37,11 @@ function GroupChat({ groupChat, setGroupChatClick, setGroupChatId }) {
     </div>
   );
 }
-function CreateGroupChatForm({ isOpen, onClose }) {
+function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [groupChatName, setGroupChatName] = useState(null);
+  const [state, dispatch] = useReducer(groupChatReducer, INITIAL_STATE);
   let user = COMMON.JwtDecode();
   // Handle preview image
   useEffect(() => {
@@ -56,46 +68,38 @@ function CreateGroupChatForm({ isOpen, onClose }) {
 
     try {
       // Wait for the image upload to complete
-      const response = await fetch(
+      const response = await axios.post(
         "https://api.cloudinary.com/v1_1/dywexvvcy/image/upload",
-        {
-          method: "POST",
-          body: data,
-        }
+        data
       );
-
-      if (!response.ok) {
-        throw new Error("Image upload failed");
-      }
-
-      const coverImage = await response.json(); // Wait for the response to be parsed as JSON
+      const coverImage = await response.data; // Wait for the response to be parsed as JSON
       console.log("Image uploaded successfully:", coverImage);
 
       // After the image is uploaded, proceed with creating the group chat
-      $.ajax({
-        url: `${COMMON.API_BASE_URL}GroupChat/Create`,
-        type: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({
-          Name: groupChatName,
-          CoverImage: coverImage.secure_url, // Use the uploaded image URL
-          userCreated: user.id,
-        }),
-        success: function (data) {
-          console.log(data);
-          onClose(true); // Close the modal or perform any other actions
-        },
-        error: function (xhr, status, error) {
-          $(".error").html(`Error creating group chat: ${xhr.responseText}`);
-        },
-      });
+      const GroupChat = {
+        Name: groupChatName,
+        CoverImage: coverImage.secure_url,
+        userCreated: user.id,
+      };
+      await axios
+        .post(`${COMMON.API_BASE_URL}GroupChat/Create`, GroupChat, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+        .then(
+          dispatch({
+            type: "ADD",
+            payload: GroupChat,
+          })
+        );
+      onClose(true); // Close the modal or perform any other actions
     } catch (error) {
       console.error("Error uploading image:", error);
       $(".error").html(`Error uploading image: ${error.message}`);
     }
   };
-
-  if (!isOpen) return null;
+  if (!isCreateGroupChatFormOpen) return null;
   return (
     <>
       <div className="overlay" onClick={onClose}>
@@ -103,7 +107,7 @@ function CreateGroupChatForm({ isOpen, onClose }) {
           className="formContainer posAbsolute centerWithTransform"
           onClick={(e) => e.stopPropagation()}
         >
-          <form onSubmit={createGroupChat}>
+          <form onSubmit={createGroupChat} className="form">
             <h2>Create Group Chat</h2>
             <p className="error textDanger"></p>
             <div className="inputGroup">
@@ -144,62 +148,78 @@ function CreateGroupChatForm({ isOpen, onClose }) {
     </>
   );
 }
-function GroupChatsContainer({ setGroupChatClick, setGroupChatId }) {
-  const [joinedGroupChats, setJoinedGroupChats] = useState(null);
+function GroupChatsContainer({
+  setGroupChatClick,
+  setGroupChatId,
+  setChannelClick,
+}) {
+  const ITEMS = 7;
   let user = COMMON.JwtDecode();
   // Handle display joined groupChat
-  useEffect(() => {
-    $.ajax({
-      url: `${COMMON.API_BASE_URL}GroupChat/GetJoinedGroupChats/${user.id}`,
-      type: "GET",
-      contentType: "application/json",
-      success: function (data) {
-        setJoinedGroupChats(data);
-      },
-      error: function (error) {
-        console.error("Error fetching joined group chats:", error);
-      },
-    });
-  }, [joinedGroupChats, user.id]);
+  const fetchGroupChats = async (page) => {
+    const response = await axios.get(
+      `${COMMON.API_BASE_URL}GroupChat/GetJoinedGroupChatsPagination/${user.id}?page=${page}&items=${ITEMS}`,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    return response;
+  };
+  const {
+    items: groupChats,
+    loaderRef,
+    loading,
+    hasMore,
+  } = useInfiniteScroll(fetchGroupChats);
   // Handle hover on groupChat
-  if (!joinedGroupChats) {
-    return;
+  if (!groupChats.length && !loading) {
+    return <h2 className="textFaded">No Group Chats Found</h2>;
   }
   return (
-    <div className="groupChatsContainer">
-      {joinedGroupChats.map((groupChat) => (
+    <div className="groupChatsContainer" id="groupChatsContainer">
+      {groupChats.map((groupChat) => (
         <GroupChat
           key={groupChat.groupChatId}
           groupChat={groupChat}
           setGroupChatClick={setGroupChatClick}
           setGroupChatId={setGroupChatId}
+          setChannelClick={setChannelClick}
         />
       ))}
+      {loading && <h3 className="textFaded">...</h3>}
+      <div ref={loaderRef} style={{ height: "20px" }}></div>
     </div>
   );
 }
 
-function GroupChatContent({ groupChatId, isGroupChatClicked }) {
+function GroupChatContent({
+  groupChatId,
+  isGroupChatClicked,
+  isChannelClicked,
+  setChannelClick,
+  setCreateChannelFormOpen,
+}) {
   const [isChannelExist, setChannelExist] = useState(true);
-  const [isChannelClicked, setChannelClick] = useState(false);
   const [groupChat, setGroupChat] = useState(null);
+  const [channel, setChannel] = useState(null);
   useEffect(() => {
     const fetchGroupChat = async () => {
       if (isGroupChatClicked && groupChatId) {
         try {
           console.log(`Fetching group chat with ID: ${groupChatId}`);
-          const response = await fetch(`${COMMON.API_BASE_URL}GroupChat/GetGroupChatById/${groupChatId}`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-          if (!response.ok) {
+          const response = await axios.get(
+            `${COMMON.API_BASE_URL}GroupChat/GetGroupChatById/${groupChatId}`,
+            {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            }
+          );
+          if (response.status >= 200 && response.status < 300) {
+            setGroupChat(response.data);
+          } else {
             throw new Error(`Error: ${response.status} ${response.statusText}`);
           }
-          const data = await response.json();
-          console.log("GroupChat data fetched:", data);
-          setGroupChat(data);
         } catch (error) {
           console.error("Error fetching group chat:", error.message);
         }
@@ -216,72 +236,129 @@ function GroupChatContent({ groupChatId, isGroupChatClicked }) {
   return (
     <>
       <div className="header bgBlack3">
-        <h3 className={`textFaded ${Styles.groupChatTitle}`}>{groupChat ? groupChat.name : "loading..."}</h3>
-        <button className="bgBlack3 textFaded borderNone">
+        <h3 className={`textFaded ${Styles.groupChatTitle}`}>
+          {groupChat ? groupChat.name : "loading..."}
+        </h3>
+        <button
+          className="bgBlack3 textFaded borderNone"
+          onClick={() => setCreateChannelFormOpen(true)}
+        >
           Add Channels <FaPlus style={{ width: "10px", height: "10px" }} />
         </button>
         <ChannelsContainer
           groupChatId={groupChatId}
           setChannelExist={setChannelExist}
           setChannelClick={setChannelClick}
+          setChannel={setChannel}
         />
       </div>
-      <div className="content">
+      <div className="content" style={{ position: "relative" }}>
         {!isChannelExist ? <MessageSectionNotFound /> : null}
-        {isChannelClicked ? <MessageContainer groupChat={groupChat}/> : null}
+        {isChannelClicked ? (
+          <MessageContainer groupChat={groupChat} channel={channel} />
+        ) : null}
       </div>
     </>
   );
 }
-function Channel({ channel, setChannelClick }) {
-  return (
-    <div>
-      <button
-        className="bgBlack4 textFaded"
-        onClick={() => setChannelClick(true)}
-      >
-        {channel.channelName}
-      </button>
-    </div>
-  );
-}
-function ChannelsContainer({ groupChatId, setChannelExist, setChannelClick }) {
-  const [channels, setChannels] = useState(null);
+function ChannelsContainer({
+  groupChatId,
+  setChannelExist,
+  setChannelClick,
+  setChannel,
+}) {
+  const [channels, setChannels] = useState([]);
   useEffect(() => {
     $.ajax({
-      url: `${COMMON.API_BASE_URL}Channels/${groupChatId}`,
+      url: `${COMMON.API_BASE_URL}Channel/${groupChatId}`,
       method: "GET",
       contentType: "application/json",
       success: function (data) {
-        console.log(data);
         !data || data.length === 0
           ? setChannelExist(false)
           : setChannelExist(true);
         setChannels(data);
+        console.log(data.length);
       },
       error: function (xhr, error, status) {
         console.log(xhr.responseText);
       },
     });
-  }, [groupChatId, setChannelExist]);
+  }, [groupChatId, setChannelExist, channels.length]);
   if (!channels || channels.length === 0) {
-    return;
+    return null;
   }
   return channels.map((channel) => (
     <Channel
       key={channel.channelId}
       channel={channel}
       setChannelClick={setChannelClick}
+      setChannel={setChannel}
     />
   ));
 }
-function MessageContainer({groupChat}) {
-  return <h1>{groupChat.name}</h1>;
+function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
+  const [channelName, setChannelName] = useState(null);
+  let user = COMMON.JwtDecode();
+  const createChannel = async (e) => {
+    e.preventDefault();
+    const response = await fetch(
+      `${COMMON.API_BASE_URL}Channel/CreateChannel`,
+      {
+        headers: {
+          "Content-Type": "application/json", // Correct header for JSON
+        },
+        method: "POST",
+        body: JSON.stringify({
+          GroupChatId: groupChatId,
+          ChannelName: channelName,
+          UserCreated: user.id,
+        }),
+      }
+    );
+    if (response) {
+      console.log(response.json);
+    }
+  };
+  if (!isCreateChannelFormOpen) {
+    return null;
+  }
+  return (
+    <>
+      <div className="overlay" onClick={onClose}>
+        <div
+          className="formContainer posAbsolute centerWithTransform"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <form onSubmit={createChannel} className="form">
+            <h2>Create Channel</h2>
+            <p className="error textDanger"></p>
+            <div className="inputGroup">
+              <label htmlFor="channelName">Channel Name</label>
+              <input
+                type="text"
+                id="channelName"
+                onChange={(e) => setChannelName(e.target.value)}
+              />
+            </div>
+            <div className="inputGroup">
+              <button type="submit" className="btn btnDanger">
+                Submit
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
 }
 function Home({ session }) {
-  const [isOpen, setOpen] = useState(false);
+  const [isCreateGroupChatFormOpen, SetCreateGroupChatFormOpen] =
+    useState(false);
+  const [isCreateChannelFormOpen, SetCreateChannelFormOpen] = useState(false);
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
-  const [groupChatId, setGroupChatId] = useState();
+  const [isChannelClicked, setChannelClick] = useState(false);
+  const [groupChatId, setGroupChatId] = useState(null);
   let user = COMMON.JwtDecode();
   if (!session) {
     return <Navigate to={"/"} />;
@@ -289,16 +366,19 @@ function Home({ session }) {
   return (
     <>
       <div className="gridContainer posRelative">
-        <div className={"bgBlack1 leftSided"}>
+        <div className={"bgBlack1 leftSided"} style={{ overflowY: "auto" }}>
           <h3 className="textFaded">Hello, {user.username}!</h3>
           <GroupChatsContainer
             setGroupChatClick={setGroupChatClick}
             isGroupChatClicked={isGroupChatClicked}
             setGroupChatId={setGroupChatId}
+            setChannelClick={setChannelClick}
           />
           <button
             className="btn btnRounded btnFaded"
-            onClick={() => setOpen(!isOpen)}
+            onClick={() =>
+              SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
+            }
           >
             <FaPlus />
           </button>
@@ -309,11 +389,22 @@ function Home({ session }) {
             <GroupChatContent
               groupChatId={groupChatId}
               isGroupChatClicked={isGroupChatClicked}
+              isChannelClicked={isChannelClicked}
+              setChannelClick={setChannelClick}
+              setCreateChannelFormOpen={SetCreateChannelFormOpen}
             />
           ) : null}
         </div>
       </div>
-      <CreateGroupChatForm isOpen={isOpen} onClose={() => setOpen(false)} />
+      <CreateGroupChatForm
+        isCreateGroupChatFormOpen={isCreateGroupChatFormOpen}
+        onClose={() => SetCreateGroupChatFormOpen(false)}
+      />
+      <CreateChannelForm
+        isCreateChannelFormOpen={isCreateChannelFormOpen}
+        onClose={() => SetCreateChannelFormOpen(false)}
+        groupChatId={groupChatId}
+      />
     </>
   );
 }

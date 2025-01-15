@@ -6,7 +6,7 @@ import Loading from "./pages/Loading/Loading";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import SignUp from "./pages/SignUp/SignUp";
-import COMMON from "./Common";
+import COMMON from "./utils/Common";
 function Navigator() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
