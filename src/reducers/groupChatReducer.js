@@ -1,22 +1,23 @@
-export const INITIAL_STATE = [];
+export const initialState = [];
 
-const groupChatReducer = (state, action) => {
+const groupChatReducer = (state = initialState, action) => {
   switch (action.type) {
     case "GET": {
-      return [...action.payload];
+      return [...action.payload]; // Replace state with new chats
     }
     case "ADD": {
-      return [...state, action.payload];
+      return [...state, action.payload]; // Add new chat
     }
-
     case "DELETE": {
-      return state.filter((chat) => chat.id !== action.payload.id);
+      return state.filter((chat) => chat.id !== action.payload.id); // Remove chat by ID
     }
     case "UPDATE": {
-      return null;
+      return state.map((chat) =>
+        chat.id === action.payload.id ? { ...chat, ...action.payload } : chat
+      ); // Update matching chat
     }
     default:
-      return state;
+      return state; // Return current state if action is unhandled
   }
 };
 

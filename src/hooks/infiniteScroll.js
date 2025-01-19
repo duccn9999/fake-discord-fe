@@ -17,6 +17,7 @@ const useInfiniteScroll = (fetchData) => {
           );
           return [...prevItems, ...newItems];
         });
+        
       } else {
         setHasMore(false);
       }
@@ -29,7 +30,6 @@ const useInfiniteScroll = (fetchData) => {
   useEffect(() => {
     fetchItems();
   }, [page]);
-
   const handleObserver = (entries) => {
     const target = entries[0];
     if (target.isIntersecting && hasMore && !loading) {

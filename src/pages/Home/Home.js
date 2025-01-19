@@ -1,7 +1,6 @@
 import Styles from "./Home.module.css";
-import { Navigate } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import $ from "jquery";
 import COMMON from "../../utils/Common";
 import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
@@ -9,8 +8,13 @@ import { Channel } from "./Channel";
 import { MessageContainer } from "./MessageContainer";
 import useInfiniteScroll from "../../hooks/infiniteScroll";
 import axios from "axios";
-import groupChatReducer,{INITIAL_STATE} from "../../reducers/groupChatReducer";
-import connection from "../../utils/signalR";
+import { Navigate, useNavigate } from "react-router-dom";
+import groupChatReducer, {
+  initialState,
+} from "../../reducers/groupChatReducer";
+import createConnectionHub from "../../signalR/UserHub";
+import useJwtDecode from "../../hooks/jwtDecode";
+import { useSelector } from "react-redux";
 function GroupChat({
   groupChat,
   setGroupChatClick,
@@ -41,8 +45,8 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [groupChatName, setGroupChatName] = useState(null);
-  const [state, dispatch] = useReducer(groupChatReducer, INITIAL_STATE);
-  let user = COMMON.JwtDecode();
+  const [state, dispatch] = useReducer(groupChatReducer, initialState);
+  let user = useJwtDecode();
   // Handle preview image
   useEffect(() => {
     if (!file) {
@@ -79,7 +83,7 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
       const GroupChat = {
         Name: groupChatName,
         CoverImage: coverImage.secure_url,
-        userCreated: user.id,
+        userCreated: user.userId,
       };
       await axios
         .post(`${COMMON.API_BASE_URL}GroupChat/Create`, GroupChat, {
@@ -154,13 +158,17 @@ function GroupChatsContainer({
   setChannelClick,
 }) {
   const ITEMS = 7;
-  let user = COMMON.JwtDecode();
+  const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode();
   // Handle display joined groupChat
   const fetchGroupChats = async (page) => {
     const response = await axios.get(
-      `${COMMON.API_BASE_URL}GroupChat/GetJoinedGroupChatsPagination/${user.id}?page=${page}&items=${ITEMS}`,
+      `${COMMON.API_BASE_URL}GroupChat/GetJoinedGroupChatsPagination/${user.userId}?page=${page}&items=${ITEMS}`,
       {
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // Correctly set Authorization header
+        },
       }
     );
     return response;
@@ -202,6 +210,7 @@ function GroupChatContent({
   const [isChannelExist, setChannelExist] = useState(true);
   const [groupChat, setGroupChat] = useState(null);
   const [channel, setChannel] = useState(null);
+  const token = useSelector((state) => state.token.value);
   useEffect(() => {
     const fetchGroupChat = async () => {
       if (isGroupChatClicked && groupChatId) {
@@ -212,6 +221,7 @@ function GroupChatContent({
             {
               headers: {
                 "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
               },
             }
           );
@@ -278,7 +288,6 @@ function ChannelsContainer({
           ? setChannelExist(false)
           : setChannelExist(true);
         setChannels(data);
-        console.log(data.length);
       },
       error: function (xhr, error, status) {
         console.log(xhr.responseText);
@@ -299,7 +308,7 @@ function ChannelsContainer({
 }
 function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
   const [channelName, setChannelName] = useState(null);
-  let user = COMMON.JwtDecode();
+  let user = useJwtDecode();
   const createChannel = async (e) => {
     e.preventDefault();
     const response = await fetch(
@@ -312,7 +321,7 @@ function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
         body: JSON.stringify({
           GroupChatId: groupChatId,
           ChannelName: channelName,
-          UserCreated: user.id,
+          UserCreated: user.userId,
         }),
       }
     );
@@ -352,17 +361,38 @@ function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
     </>
   );
 }
-function Home({ session }) {
+function Home({ isTokenExpired }) {
   const [isCreateGroupChatFormOpen, SetCreateGroupChatFormOpen] =
     useState(false);
   const [isCreateChannelFormOpen, SetCreateChannelFormOpen] = useState(false);
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [isChannelClicked, setChannelClick] = useState(false);
   const [groupChatId, setGroupChatId] = useState(null);
-  let user = COMMON.JwtDecode();
-  if (!session) {
-    return <Navigate to={"/"} />;
-  }
+  const navigate = useNavigate();
+  const user = useJwtDecode();
+  const token = useSelector(state => state.token.value);
+  const connectionRef = useRef(null);
+  useEffect(() => {
+    if (isTokenExpired) {
+      navigate("/");
+    }
+    const connectionHub = async() => {
+      const connection = await createConnectionHub(token);
+      connectionRef.current = connection;
+      try{
+        await connection.invoke("OnConnected", user.username);
+      }catch(err){
+        console.error("Error invoking OnConnected:", err);
+      }
+    };
+    connectionHub();
+    return () => {
+      if(connectionRef.current){
+        connectionRef.current.stop();
+        console.log("SignalR connection stopped.");
+      }
+    }
+  }, [isTokenExpired, token]);
   return (
     <>
       <div className="gridContainer posRelative">

@@ -2,30 +2,27 @@ import logo from "./logo.svg";
 import { useState, useEffect } from "react";
 import Home from "./pages/Home/Home";
 import Login from "./pages/Login/Login";
-import Loading from "./pages/Loading/Loading";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import SignUp from "./pages/SignUp/SignUp";
-import COMMON from "./utils/Common";
+import useCheckTokenExpired from "./hooks/checkTokenExpired";
 function Navigator() {
-  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const isTokenExpired = useCheckTokenExpired();
   // Sync session with localStorage
   useEffect(() => {
-    const storedSession = COMMON.SESSION;
-    setSession(storedSession);
     setLoading(false);
   }, []);
 
   if (loading) {
-    return <Loading />;
+    return <h3>Loading.....</h3>;
   }
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login session={session} setSession={setSession}/>} />
+        <Route path="/" element={<Login isTokenExpired={isTokenExpired}/>} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/home" element={<Home session={session}/> } />
+        <Route path="/home" element={<Home  isTokenExpired={isTokenExpired}/>} />
       </Routes>
     </BrowserRouter>
   );

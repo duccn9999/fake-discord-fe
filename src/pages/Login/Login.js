@@ -1,16 +1,20 @@
 import Styles from "./Login.module.css";
-import { Outlet, Link, Navigate } from "react-router-dom";
+import { Outlet, Link, Navigate, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useDispatch } from "react-redux";
 import COMMON from "../../utils/Common";
 import $ from "jquery";
-
-function Login({session, setSession }) {
+import { save } from "../../reducers/tokenReducer";
+function Login({ isTokenExpired }) {
   const [UserName, setUserName] = useState(null);
   const [Password, setPassword] = useState(null);
-  if(session){
-    return <Navigate to={"/home"}/>
-  }
-
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!isTokenExpired) {
+      navigate("/home");
+    }
+  },[isTokenExpired]);
   const handleSubmit = (e) => {
     e.preventDefault();
     $.ajax({
@@ -19,8 +23,7 @@ function Login({session, setSession }) {
       contentType: "application/json", // Specify JSON format
       data: JSON.stringify({ UserName, Password }), // Convert data to JSON string
       success: function (data) {
-        window.localStorage.setItem("session", data); // Update localStorage
-        setSession(data);
+        dispatch(save(data));
       },
       error: function (xhr, status, error) {
         console.error("Error:", xhr.responseText);
@@ -30,21 +33,37 @@ function Login({session, setSession }) {
 
   return (
     <div className="formContainer">
-      <form id={Styles.loginForm} onSubmit={handleSubmit} className={`${Styles.form}`}>
+      <form
+        id={Styles.loginForm}
+        onSubmit={handleSubmit}
+        className={`${Styles.form}`}
+      >
         <h1>Login</h1>
         <div className="inputGroup">
           <label htmlFor="username">Username</label>
-          <input type="text" id="username" required onChange={(e) => setUserName(e.target.value)}/>
+          <input
+            type="text"
+            id="username"
+            required
+            onChange={(e) => setUserName(e.target.value)}
+          />
         </div>
         <div className="inputGroup">
           <label htmlFor="password">Password</label>
-          <input type="password" id="password" required onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            id="password"
+            required
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
         <div className="inputGroup">
-          <button type="submit" className="btn btnDanger">Submit</button>
+          <button type="submit" className="btn btnDanger">
+            Submit
+          </button>
         </div>
         <div>
-          Dont have an account? <Link to="/signup">Create now</Link>
+          Don't have an account? <Link to="/signup">Create now</Link>
         </div>
         <Outlet />
       </form>
