@@ -17,8 +17,8 @@ const createConnectionHub = async (token) => {
   connection.on("UserConnected", (username) => {
     console.log(`User ${username} has connected!!`);
   });
-  connection.on("GroupChatUpdated", (groupChat) => {
-    console.log("Group chat updated:", groupChat);
+  connection.on("GroupChatsRefresh", () => {
+    console.log("Group chat refreshed:");
     window.location.reload();
   });
   return connection;
