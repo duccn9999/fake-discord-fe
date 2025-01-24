@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import SignUp from "./pages/SignUp/SignUp";
 import useCheckTokenExpired from "./hooks/checkTokenExpired";
+import { ToastContainer } from "react-toastify";
 function Navigator() {
   const [loading, setLoading] = useState(true);
   const isTokenExpired = useCheckTokenExpired();
@@ -32,6 +33,7 @@ function App() {
   return (
     <div className="App">
       <Navigator />
+      <ToastContainer />
     </div>
   );
 }

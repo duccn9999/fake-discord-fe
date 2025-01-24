@@ -1,5 +1,5 @@
 import Styles from "./Login.module.css";
-import { Outlet, Link, Navigate, useNavigate } from "react-router-dom";
+import { Outlet, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import COMMON from "../../utils/Common";

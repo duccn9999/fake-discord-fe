@@ -1,7 +1,7 @@
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
-const URL = "https://localhost:7065/userHub";
+const URL = "https://localhost:7065/groupChatHub";
 
-const createUserHub = async (token) => {
+const createGroupChatHub = async (token) => {
   const connection = new HubConnectionBuilder()
     .withUrl(`${URL}?access_token=${token}`)
     .withAutomaticReconnect()
@@ -14,9 +14,6 @@ const createUserHub = async (token) => {
   } catch (err) {
     console.error("SignalR connection error:", err.toString());
   }
-  connection.on("UserConnected", (username) => {
-    console.log(`User ${username} has connected!!`);
-  });
   connection.on("GroupChatsRefresh", () => {
     console.log("Group chat refreshed:");
     window.location.reload();
@@ -24,4 +21,4 @@ const createUserHub = async (token) => {
   return connection;
 };
 
-export default createUserHub;
+export default createGroupChatHub;
