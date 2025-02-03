@@ -1,34 +1,32 @@
-import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
-import Styles from "../pages/Home/Home.module.css";
-import $ from "jquery";
+import * as signalR from "@microsoft/signalr";
+import { ADD_MESSAGE } from "../reducers/messagesReducer";
 const URL = "https://localhost:7065/channelHub";
-
-const createChannelHub = async (token) => {
-  const connection = new HubConnectionBuilder()
+let connection = null;
+const createChannelHub = async (token, dispatch) => {
+  if (connection) {
+    return connection;
+  }
+  connection = new signalR.HubConnectionBuilder()
     .withUrl(`${URL}?access_token=${token}`)
     .withAutomaticReconnect()
-    .configureLogging(LogLevel.Information)
+    .configureLogging(signalR.LogLevel.Information)
     .build();
-
   try {
     await connection.start(); // Ensure await here
     console.log("ChannelHub connected successfully.");
   } catch (err) {
     console.error("ChannelHub connection error:", err.toString());
   }
-  connection.on("ChannelCreated", (channelName) => {
-    if (channelName) {
-      const channel = `<div>
-        <button class="bgBlack4 textFaded ${Styles.channel}">
-          ${channelName}
-        </button>
-      </div>`;
-      $("#channelsContainer").append(channel);
-    } else {
-      console.error("Invalid data received from ChannelCreated event:", channelName);
-    }
+  connection.on("EnterChannel", (username, channel) => {
+    console.log(`user ${username} has enter channel ${channel.channelName}`);
+  });
+  connection.on("SendMessage", (message) => {
+    dispatch(ADD_MESSAGE(message));
   });
 
+  connection.on("UserLeave", (username, channel) => {
+    console.log(`User ${username} has left this ${channel.channelName}!`);
+  });
   return connection;
 };
 

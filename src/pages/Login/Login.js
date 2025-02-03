@@ -1,34 +1,40 @@
 import Styles from "./Login.module.css";
-import { Outlet, Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { Outlet, Link, Navigate } from "react-router-dom";
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
-import $ from "jquery";
 import { save } from "../../reducers/tokenReducer";
-function Login({ isTokenExpired }) {
+import axios from "axios";
+import { toast } from "react-toastify";
+function Login() {
   const [UserName, setUserName] = useState(null);
   const [Password, setPassword] = useState(null);
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (!isTokenExpired) {
-      navigate("/home");
-    }
-  },[isTokenExpired]);
-  const handleSubmit = (e) => {
+  const token = useSelector((state) => state.token.value);
+  if (token) {
+    return <Navigate to={"/home"} />;
+  }
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    $.ajax({
-      url: `${COMMON.API_BASE_URL}Authentication/Login`,
-      type: "POST",
-      contentType: "application/json", // Specify JSON format
-      data: JSON.stringify({ UserName, Password }), // Convert data to JSON string
-      success: function (data) {
-        dispatch(save(data));
-      },
-      error: function (xhr, status, error) {
-        console.error("Error:", xhr.responseText);
-      },
-    });
+    await axios
+      .post(
+        `${COMMON.API_BASE_URL}Authentication/Login`,
+        { UserName: UserName, Password: Password },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      .then((response) => {
+        dispatch(save(response.data));
+      })
+      .catch((err) => {
+        toast.error("Failed to login profile: " + err.message, {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      });
   };
 
   return (
@@ -58,7 +64,7 @@ function Login({ isTokenExpired }) {
           />
         </div>
         <div className="inputGroup">
-          <button type="submit" className="btn btnDanger">
+          <button type="submit" className="btn bgDanger">
             Submit
           </button>
         </div>

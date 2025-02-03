@@ -11,13 +11,8 @@ const useInfiniteScroll = (fetchData) => {
       const response = await fetchData(page);
       if (response.data.length > 0) {
         setItems((prevItems) => {
-          // Filter out already existing items
-          const newItems = response.data.filter(
-            (item) => !prevItems.some((prevItem) => prevItem.groupChatId === item.groupChatId)
-          );
-          return [...prevItems, ...newItems];
+          return [...new Set([...prevItems, ...response.data])];
         });
-        
       } else {
         setHasMore(false);
       }
@@ -29,6 +24,9 @@ const useInfiniteScroll = (fetchData) => {
   };
   useEffect(() => {
     fetchItems();
+    return () => {
+      console.log("fetching success!");
+    };
   }, [page]);
   const handleObserver = (entries) => {
     const target = entries[0];
@@ -40,7 +38,7 @@ const useInfiniteScroll = (fetchData) => {
   useEffect(() => {
     const observer = new IntersectionObserver(handleObserver, {
       root: null,
-      rootMargin: "20px",
+      rootMargin: "100px",
       threshold: 1.0,
     });
 
@@ -51,7 +49,7 @@ const useInfiniteScroll = (fetchData) => {
     return () => observer.disconnect();
   }, [hasMore, loading]);
 
-  return { items, loading, hasMore, loaderRef };
+  return { items, loading, loaderRef };
 };
 
 export default useInfiniteScroll;

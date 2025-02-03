@@ -1,6 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import tokenReducer from "../reducers/tokenReducer";
-import groupChatReducer from "../reducers/groupChatReducer";
+import channelsReducer from "../reducers/channelsReducer";
+import messagesReducer from "../reducers/messagesReducer";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 
@@ -13,7 +14,8 @@ const persistedReducer = persistReducer(persistConfig, tokenReducer);
 export const store = configureStore({
   reducer: {
     token: persistedReducer,
-    groupChats: groupChatReducer
+    channels: channelsReducer,
+    messages: messagesReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

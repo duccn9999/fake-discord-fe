@@ -22,7 +22,7 @@ function SignUp(params) {
           <input type="password" id="repeatPassword" className="inputGroup" />
         </div>
         <div className="inputGroup">
-          <button type="submit" className="btn btnRed">
+          <button type="submit" className="btn bgDanger">
             Submit
           </button>
         </div>

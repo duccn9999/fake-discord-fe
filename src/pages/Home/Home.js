@@ -1,31 +1,42 @@
 import Styles from "./Home.module.css";
 import { FaPlus } from "react-icons/fa";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import $ from "jquery";
 import COMMON from "../../utils/Common";
 import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
 import { Channel } from "./Channel";
-import { MessagesContainer } from "./MessageContainer";
+import { MessagesContainer } from "./MessagesContainer";
 import useInfiniteScroll from "../../hooks/infiniteScroll";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { FaCog } from "react-icons/fa";
+import { RiLogoutBoxRLine } from "react-icons/ri";
+import { IoIosOptions } from "react-icons/io";
 import createUserHub from "../../signalR/userHub";
 import createGroupChatHub from "../../signalR/groupChatHub";
 import createChannelHub from "../../signalR/channelHub";
 import useJwtDecode from "../../hooks/jwtDecode";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { GET_CHANNELS, ADD_CHANNEL } from "../../reducers/channelsReducer";
 import useUploadImage from "../../hooks/uploadImage";
 import { toast } from "react-toastify";
+import { v4 as uuidv4 } from "uuid";
+import { clear } from "../../reducers/tokenReducer";
 const UserHubContext = createContext();
 const GroupChatHubContext = createContext();
 const ChannelHubContext = createContext();
 function GroupChat({ groupChat, handleGroupChatClick }) {
+  const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode(token);
+  const groupChatHub = useContext(GroupChatHubContext);
   return (
     <div
       className={`${Styles.chatComponent}`}
       onClick={() => {
         handleGroupChatClick(groupChat.groupChatId);
+        groupChatHub
+          .invoke("OnEnterGroupChat", user.username, groupChat)
+          .catch((err) => console.error("SignalR Error:", err));
       }}
     >
       <div className={`${Styles.avatar} dInlineBlock`}>
@@ -43,8 +54,9 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [groupChatName, setGroupChatName] = useState(null);
-  const userHub = useContext(UserHubContext);
-  let user = useJwtDecode();
+  const groupChatHub = useContext(GroupChatHubContext);
+  const token = useSelector((state) => state.token.value);
+  let user = useJwtDecode(token);
   // Handle preview image
   useEffect(() => {
     if (!file) {
@@ -60,7 +72,6 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
     setFile(e.target.files[0]);
   };
   const coverImage = useUploadImage(file);
-  console.log("avatar ", coverImage);
   const createGroupChat = async (e) => {
     e.preventDefault();
     try {
@@ -75,7 +86,7 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
           "Content-Type": "application/json",
         },
       });
-      userHub.invoke("GroupChatsRefresh");
+      groupChatHub.invoke("OnRefreshGroupChats");
       onClose(true); // Close the modal or perform any other actions
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -121,7 +132,7 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
               </div>
             )}
             <div className="inputGroup">
-              <button type="submit" className="btn btnDanger">
+              <button type="submit" className="btn bgDanger">
                 Submit
               </button>
             </div>
@@ -132,13 +143,32 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
   );
 }
 function GroupChatsContainer({ handleGroupChatClick }) {
-  const ITEMS = 7;
   const token = useSelector((state) => state.token.value);
-  const user = useJwtDecode();
+  const user = useJwtDecode(token);
+  const dispatch = useDispatch();
+  const [groupChats, setGroupChats] = useState([]);
+  const [groupChatHub, setGroupChatHub] = useState(null);
+  useEffect(() => {
+    const createHub = async () => {
+      try {
+        const groupChatHub = await createGroupChatHub(token);
+        setGroupChatHub(groupChatHub);
+      } catch (err) {
+        console.error("Error invoking OnConnected:", err);
+      }
+    };
+    createHub();
+    return () => {
+      if (groupChatHub) {
+        groupChatHub.stop();
+        console.log("SignalR connection stopped.");
+      }
+    };
+  }, [token]);
   // Handle display joined groupChat
-  const fetchGroupChats = async (page) => {
+  const fetchGroupChats = async (userId) => {
     const response = await axios.get(
-      `${COMMON.API_BASE_URL}GroupChats/GetJoinedGroupChatsPagination/${user.userId}?page=${page}&items=${ITEMS}`,
+      `${COMMON.API_BASE_URL}GroupChats/GetJoinedGroupChats/${userId}`,
       {
         headers: {
           "Content-Type": "application/json",
@@ -146,40 +176,43 @@ function GroupChatsContainer({ handleGroupChatClick }) {
         },
       }
     );
-    return response;
+    if (response.status === 200) {
+      setGroupChats(response.data);
+    } else if (response.status === 401) {
+      dispatch(clear(token));
+    }
   };
-  const {
-    items: groupChats,
-    loaderRef,
-    loading,
-    hasMore,
-  } = useInfiniteScroll(fetchGroupChats);
+  useEffect(() => {
+    fetchGroupChats(user.userId);
+    return () => {
+      console.log("Group chat displayed!!!")
+    };
+  },[user.userId]);
   // Handle hover on groupChat
-  if (!groupChats.length && !loading) {
+  if (!groupChats.length) {
     return <h2 className="textFaded">No Group Chats Found</h2>;
   }
   return (
-    <div className="groupChatsContainer" id="groupChatsContainer">
-      {groupChats.map((groupChat) => (
-        <GroupChat
-          key={groupChat.groupChatId}
-          groupChat={groupChat}
-          handleGroupChatClick={handleGroupChatClick}
-        />
-      ))}
-      {loading && <h3 className="textFaded">...</h3>}
-      <div ref={loaderRef} style={{ height: "20px" }}></div>
-    </div>
+    <GroupChatHubContext.Provider value={groupChatHub}>
+      <div className="groupChatsContainer" id="groupChatsContainer">
+        {groupChats.map((groupChat) => (
+          <GroupChat
+            key={groupChat.groupChatId}
+            groupChat={groupChat}
+            handleGroupChatClick={handleGroupChatClick}
+          />
+        ))}
+      </div>
+    </GroupChatHubContext.Provider>
   );
 }
-function EditProfileForm({ isEditProfileFormOpen, onClose, user }) {
+function EditProfileForm({ isEditProfileFormOpen, onClose, user, token }) {
   const [username, setUsername] = useState(null);
   const [email, setEmail] = useState(null);
   const [password, setPassword] = useState(null);
   const [avatar, setAvatar] = useState(null);
   const [changePassword, setChangePassword] = useState(false);
-  const token = useSelector((state) => state.token.value);
-
+  const dispatch = useDispatch();
   useEffect(() => {
     if (changePassword) {
       $(".changePasswordWrapper").css("display", "block");
@@ -195,6 +228,7 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user }) {
     UserId: user.userId,
     Username: username ? username : user.username,
     Password: password ? password : user.password,
+    Avatar: avatar ? avatar : user.avatar,
     Email: email ? email : user.email,
   };
   const updateProfile = async (e) => {
@@ -216,6 +250,7 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user }) {
           autoClose: 5000,
         });
         onClose(true);
+        dispatch(clear(token));
       }
     } catch (err) {
       toast.error("Failed to update profile: " + err.message, {
@@ -295,7 +330,7 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user }) {
             </div>
             <div className="inputGroup">
               <button
-                className="btn btnSuccess"
+                className="btn bgSuccess"
                 onClick={(e) => {
                   e.preventDefault();
                   setChangePassword(!changePassword);
@@ -304,7 +339,7 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user }) {
               >
                 Change Password
               </button>
-              <button type="submit" className="btn btnDanger">
+              <button type="submit" className="btn bgDanger">
                 Submit
               </button>
             </div>
@@ -317,13 +352,35 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user }) {
 function GroupChatContent({
   groupChatId,
   isGroupChatClicked,
+  isChannelClicked,
   setCreateChannelFormOpen,
+  setChannelClick,
 }) {
-  const [isChannelClicked, setChannelClick] = useState(false);
   const [isChannelExist, setChannelExist] = useState(true);
   const [groupChat, setGroupChat] = useState(null);
   const [channel, setChannel] = useState(null);
+  const [previousChannel, setPreviousChannel] = useState(null);
   const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode(token);
+  const dispatch = useDispatch();
+  const [channelHub, setChannelHub] = useState(null);
+  useEffect(() => {
+    const createHub = async () => {
+      try {
+        const channelHub = await createChannelHub(token, dispatch);
+        setChannelHub(channelHub);
+      } catch (err) {
+        console.error("Error invoking OnConnected:", err);
+      }
+    };
+    createHub();
+    return () => {
+      if (channelHub) {
+        channelHub.stop();
+        console.log("channelHub stopped");
+      }
+    };
+  }, [token]);
   useEffect(() => {
     const fetchGroupChat = async () => {
       if (isGroupChatClicked && groupChatId) {
@@ -338,21 +395,40 @@ function GroupChatContent({
               },
             }
           );
-          if (response.status >= 200 && response.status < 300) {
+          if (response.status === 200) {
             setGroupChat(response.data);
           } else {
             throw new Error(`Error: ${response.status} ${response.statusText}`);
           }
         } catch (error) {
           console.error("Error fetching group chat:", error.message);
+          toast.error("Failed to enter group chat: " + error.message, {
+            position: "top-right",
+            autoClose: 5000,
+          });
+          dispatch(clear(token));
         }
       } else {
         setGroupChat(null);
       }
     };
-
     fetchGroupChat();
   }, [groupChatId, isGroupChatClicked]);
+  const channelTracker = (value) => {
+    setPreviousChannel(channel);
+    setChannel(value);
+  };
+  // disconnect from channel
+  useEffect(() => {
+    if (previousChannel) {
+      channelHub.invoke("OnLeave", user.username, previousChannel);
+    }
+    return () => {
+      if (previousChannel) {
+        channelHub.invoke("OnLeave", user.username, previousChannel);
+      }
+    };
+  }, [previousChannel]);
   if (!groupChatId) {
     return;
   }
@@ -363,7 +439,7 @@ function GroupChatContent({
           {groupChat ? groupChat.name : "loading..."}
         </h3>
         <button
-          className="bgBlack3 textFaded borderNone"
+          className="bgBlack3 textFaded borderNone w100"
           onClick={() => setCreateChannelFormOpen(true)}
         >
           Add Channels <FaPlus style={{ width: "10px", height: "10px" }} />
@@ -372,12 +448,18 @@ function GroupChatContent({
           groupChatId={groupChatId}
           setChannelExist={setChannelExist}
           setChannelClick={setChannelClick}
-          setChannel={setChannel}
+          channelTracker={channelTracker}
+          channelHub={channelHub}
         />
       </div>
-      <div className="content" style={{ position: "relative" }}>
+      <div
+        className="content dGrid"
+        style={{ gridTemplateRows: "auto 3fr auto", height: "100vh" }}
+      >
         {!isChannelExist ? <MessageSectionNotFound /> : null}
-        {isChannelClicked ? <MessagesContainer channel={channel} /> : null}
+        {isChannelClicked ? (
+          <MessagesContainer channel={channel} channelHub={channelHub} />
+        ) : null}
       </div>
     </>
   );
@@ -386,9 +468,11 @@ function ChannelsContainer({
   groupChatId,
   setChannelExist,
   setChannelClick,
-  setChannel,
+  channelTracker,
+  channelHub,
 }) {
-  const [channels, setChannels] = useState([]);
+  const channels = useSelector((state) => state.channels.value);
+  const dispatch = useDispatch();
   useEffect(() => {
     axios
       .get(`${COMMON.API_BASE_URL}Channels/${groupChatId}`, {
@@ -403,32 +487,40 @@ function ChannelsContainer({
         } else {
           setChannelExist(true);
         }
-        setChannels(data);
+        dispatch(GET_CHANNELS(data));
       })
       .catch((error) => {
         console.error(error.response?.data || error.message);
       });
-  }, [groupChatId, setChannelExist, channels.length]);
+  }, [groupChatId]);
   if (!channels || channels.length === 0) {
     return null;
   }
   return (
-    <div id="channelsContainer">
-      {channels.map((channel) => (
-        <Channel
-          key={channel.channelId}
-          channel={channel}
-          setChannelClick={setChannelClick}
-          setChannel={setChannel}
-        />
-      ))}
-    </div>
+    <ChannelHubContext.Provider value={channelHub}>
+      <div id="channelsContainer">
+        {channels.map((channel) => (
+          <Channel
+            key={uuidv4()}
+            channel={channel}
+            setChannelClick={setChannelClick}
+            channelTracker={channelTracker}
+            channelHub={channelHub}
+          />
+        ))}
+      </div>
+    </ChannelHubContext.Provider>
   );
 }
-function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
+function CreateChannelForm({
+  isCreateChannelFormOpen,
+  onClose,
+  groupChatId,
+  token,
+}) {
   const [channelName, setChannelName] = useState(null);
-  let user = useJwtDecode();
-  const channelHub = useContext(ChannelHubContext);
+  const dispatch = useDispatch();
+  let user = useJwtDecode(token);
   const createChannel = async (e) => {
     e.preventDefault();
     const model = {
@@ -436,21 +528,26 @@ function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
       ChannelName: channelName,
       UserCreated: user.userId,
     };
-    const response = await fetch(
+    const response = await axios.post(
       `${COMMON.API_BASE_URL}Channels/CreateChannel`,
+      model, // Axios automatically stringifies JSON
       {
         headers: {
           "Content-Type": "application/json", // Correct header for JSON
         },
-        method: "POST",
-        body: JSON.stringify(model),
       }
     );
     if (response.status === 201) {
+      const data = response.data;
       onClose(true);
-      channelHub.invoke("OnCreated", channelName).catch((err) => {
-        console.error("Failed to invoke 'OnCreated':", err);
+      dispatch(ADD_CHANNEL(data));
+    }
+    if (response.status === 401) {
+      toast.error("Failed create channel: " + response.data, {
+        position: "top-right",
+        autoClose: 5000,
       });
+      dispatch(clear(token));
     }
   };
   if (!isCreateChannelFormOpen) {
@@ -475,7 +572,7 @@ function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
               />
             </div>
             <div className="inputGroup">
-              <button type="submit" className="btn btnDanger">
+              <button type="submit" className="btn bgDanger">
                 Submit
               </button>
             </div>
@@ -485,112 +582,135 @@ function CreateChannelForm({ isCreateChannelFormOpen, onClose, groupChatId }) {
     </>
   );
 }
-function Home({ isTokenExpired }) {
+function Home() {
   const [isCreateGroupChatFormOpen, SetCreateGroupChatFormOpen] =
     useState(false);
   const [isCreateChannelFormOpen, SetCreateChannelFormOpen] = useState(false);
   const [isEditProfileFormOpen, setEditProfileForm] = useState(false);
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
+  const [isChannelClicked, setChannelClick] = useState(false);
   const [groupChatId, setGroupChatId] = useState(null);
-  const navigate = useNavigate();
-  const user = useJwtDecode();
+  const dispatch = useDispatch();
   const token = useSelector((state) => state.token.value);
-  const userHubRef = useRef(null);
-  const groupChatHubRef = useRef(null);
-  const channelHubRef = useRef(null);
+  const user = useJwtDecode(token);
+  const [userHub, setUserHub] = useState(null);
   const handleGroupChatClick = (id) => {
     setGroupChatClick(true);
+    setChannelClick(false);
     setGroupChatId(id);
   };
   useEffect(() => {
-    if (isTokenExpired) {
-      navigate("/");
-    }
-    const createHubs = async () => {
-      const userHub = await createUserHub(token);
-      userHubRef.current = userHub;
+    const createHub = async () => {
       try {
-        await userHub.invoke("OnConnected", user.username);
+        if (token) {
+          const hub = await createUserHub(token);
+          hub.invoke("OnConnected", user.username);
+          setUserHub(hub);
+        }
       } catch (err) {
         console.error("Error invoking OnConnected:", err);
       }
-
-      const groupChatHub = await createGroupChatHub(token);
-      groupChatHubRef.current = groupChatHub;
-      const channelHub = await createChannelHub(token);
-      channelHubRef.current = channelHub;
     };
-    createHubs();
+    createHub();
     return () => {
-      if (userHubRef.current && groupChatHubRef && channelHubRef) {
-        userHubRef.current.stop();
-        groupChatHubRef.current.stop();
-        channelHubRef.current.stop();
+      if (userHub) {
+        userHub.stop();
         console.log("SignalR connection stopped.");
       }
     };
-  }, [isTokenExpired, token]);
+  }, [token]);
+  // Redirect if token is cleared or expired
+  if (!token) {
+    if (userHub) {
+      userHub.stop(); // Stop SignalR connection if token is cleared
+    }
+    return <Navigate to="/" />;
+  }
   return (
-    <UserHubContext.Provider value={userHubRef.current}>
-      <GroupChatHubContext.Provider value={groupChatHubRef.current}>
-        <ChannelHubContext.Provider value={channelHubRef.current}>
-          <div className="gridContainer">
-            <div
-              className={"bgBlack1 leftSided posRelative"}
-              style={{ overflowY: "auto" }}
-            >
-              <h3 className="textFaded">Hello, {user.username}!</h3>
-              <GroupChatsContainer
-                isGroupChatClicked={isGroupChatClicked}
-                handleGroupChatClick={handleGroupChatClick}
-              />
+    <UserHubContext.Provider value={userHub}>
+      <div className="gridContainer">
+        <div
+          className={"bgBlack1 leftSided posRelative"}
+          style={{ overflowY: "auto" }}
+        >
+          <h3 className="textFaded">Hello, {user.username}!</h3>
+          <GroupChatsContainer handleGroupChatClick={handleGroupChatClick} />
+          <button
+            className="btn btnRounded bgSuccess"
+            onClick={() =>
+              SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
+            }
+          >
+            <FaPlus />
+          </button>
+          <div className="posSticky" style={{ bottom: 0, width: "100%" }}>
+            <div id="optBtns" style={{ display: "none" }}>
               <button
-                className="btn btnRounded btnFaded"
-                onClick={() =>
-                  SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
-                }
+                className="btn bgInverse textFaded w100"
+                onClick={() => {
+                  dispatch(clear(token));
+                }}
               >
-                <FaPlus />
+                <span className="dFlex alignCenter justifyEvenly">
+                  Log out <RiLogoutBoxRLine />
+                </span>
               </button>
-              <div className="posAbsolute" style={{ bottom: 0, width: "100%" }}>
-                <button
-                  className="btn btnFaded textInverse"
-                  style={{ width: "100%" }}
-                  onClick={() => setEditProfileForm(true)}
-                >
-                  <span className="dFlex alignCenter justifyEvenly">
-                    Edit profile <FaCog />
-                  </span>
-                </button>
-              </div>
+              <button
+                className="btn bgSecondary textInverse w100"
+                onClick={() => setEditProfileForm(true)}
+              >
+                <span className="dFlex alignCenter justifyEvenly">
+                  Edit profile <FaCog />
+                </span>
+              </button>
             </div>
-            <div className={"bgBlack2 rightSided"}>
-              {/* chat content here */}
-              {isGroupChatClicked ? (
-                <GroupChatContent
-                  groupChatId={groupChatId}
-                  isGroupChatClicked={isGroupChatClicked}
-                  setCreateChannelFormOpen={SetCreateChannelFormOpen}
-                ></GroupChatContent>
-              ) : null}
-            </div>
+            <button
+              className="btn bgFaded textInverse w100"
+              onClick={() => $("#optBtns").toggle()}
+            >
+              <span className="dFlex alignCenter justifyEvenly">
+                <img
+                  alt="img"
+                  src={user.avatar}
+                  className="avatarCircle"
+                  style={{ "--avatar-size": "25px" }}
+                />
+                Options
+                <IoIosOptions />
+              </span>
+            </button>
           </div>
-          <CreateGroupChatForm
-            isCreateGroupChatFormOpen={isCreateGroupChatFormOpen}
-            onClose={() => SetCreateGroupChatFormOpen(false)}
-          />
-          <CreateChannelForm
-            isCreateChannelFormOpen={isCreateChannelFormOpen}
-            onClose={() => SetCreateChannelFormOpen(false)}
-            groupChatId={groupChatId}
-          />
-          <EditProfileForm
-            isEditProfileFormOpen={isEditProfileFormOpen}
-            onClose={() => setEditProfileForm(false)}
-            user={user}
-          />
-        </ChannelHubContext.Provider>
-      </GroupChatHubContext.Provider>
+        </div>
+        <div className={"bgBlack2 rightSided"}>
+          {/* chat content here */}
+          {isGroupChatClicked ? (
+            <GroupChatContent
+              groupChatId={groupChatId}
+              isGroupChatClicked={isGroupChatClicked}
+              isChannelClicked={isChannelClicked}
+              setCreateChannelFormOpen={SetCreateChannelFormOpen}
+              setGroupChatClick={setGroupChatClick}
+              setChannelClick={setChannelClick}
+            />
+          ) : null}
+        </div>
+      </div>
+      <CreateGroupChatForm
+        isCreateGroupChatFormOpen={isCreateGroupChatFormOpen}
+        onClose={() => SetCreateGroupChatFormOpen(false)}
+      />
+      <CreateChannelForm
+        isCreateChannelFormOpen={isCreateChannelFormOpen}
+        onClose={() => SetCreateChannelFormOpen(false)}
+        groupChatId={groupChatId}
+        token={token}
+      />
+      <EditProfileForm
+        isEditProfileFormOpen={isEditProfileFormOpen}
+        onClose={() => setEditProfileForm(false)}
+        user={user}
+        token={token}
+      />
     </UserHubContext.Provider>
   );
 }
