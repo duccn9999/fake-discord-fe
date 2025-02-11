@@ -8,36 +8,22 @@ export const messagesSlice = createSlice({
     GET_MESSAGES: (state, action) => {
       state.value = action.payload;
     },
-    GET_MESSAGES_PAGINATION: (state, action) => {
-      const combinedMessages = [...state.value, ...action.payload];
-
-      // Ensuring uniqueness based on a specific property, e.g., 'id'
-      state.value = combinedMessages.filter(
-        (msg, index, self) => index === self.findIndex((m) => m.id === msg.id)
-      );
-    },
-
     ADD_MESSAGE: (state, action) => {
-      state.value.push(action.payload);
+      state.value.unshift(action.payload);
     },
     UPDATE_MESSAGE: (state, action) => {
       const index = state.value.findIndex(
-        (msg) => msg.id === action.payload.id
+        (msg) => msg.messageId === action.payload.messageId
       );
       if (index !== -1) {
-        state.value[index] = { ...state.value[index], ...action.payload }; // Update message
+        state.value[index] = { ...state.value[index], ...action.payload }; // Update only the specific message
       }
     },
     DELETE_MESSAGE: (state, action) => {
-      state.value = state.value.filter((msg) => msg.id !== action.payload); // Remove message by ID
+      state.value = state.value.filter((msg) => msg.messageId !== action.payload.messageId); // Remove message by ID
     },
   },
 });
-export const {
-  GET_MESSAGES,
-  GET_MESSAGES_PAGINATION,
-  ADD_MESSAGE,
-  UPDATE_MESSAGE,
-  DELETE_MESSAGE,
-} = messagesSlice.actions;
+export const { GET_MESSAGES, ADD_MESSAGE, UPDATE_MESSAGE, DELETE_MESSAGE } =
+  messagesSlice.actions;
 export default messagesSlice.reducer;

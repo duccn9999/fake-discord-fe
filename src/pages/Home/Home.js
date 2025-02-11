@@ -185,9 +185,9 @@ function GroupChatsContainer({ handleGroupChatClick }) {
   useEffect(() => {
     fetchGroupChats(user.userId);
     return () => {
-      console.log("Group chat displayed!!!")
+      console.log("Group chat displayed!!!");
     };
-  },[user.userId]);
+  }, [user.userId]);
   // Handle hover on groupChat
   if (!groupChats.length) {
     return <h2 className="textFaded">No Group Chats Found</h2>;
@@ -415,19 +415,18 @@ function GroupChatContent({
     fetchGroupChat();
   }, [groupChatId, isGroupChatClicked]);
   const channelTracker = (value) => {
-    setPreviousChannel(channel);
-    setChannel(value);
+    if (channel && channel?.channelId !== value.channelId) {
+      setPreviousChannel(channel);
+    }
+    if (!channel || channel.channelId !== value.channelId) {
+      setChannel(value);
+    }
   };
   // disconnect from channel
   useEffect(() => {
     if (previousChannel) {
       channelHub.invoke("OnLeave", user.username, previousChannel);
     }
-    return () => {
-      if (previousChannel) {
-        channelHub.invoke("OnLeave", user.username, previousChannel);
-      }
-    };
   }, [previousChannel]);
   if (!groupChatId) {
     return;
@@ -454,7 +453,7 @@ function GroupChatContent({
       </div>
       <div
         className="content dGrid"
-        style={{ gridTemplateRows: "auto 3fr auto", height: "100vh" }}
+        style={{ gridTemplateRows: "auto auto 1fr", height: "100vh" }}
       >
         {!isChannelExist ? <MessageSectionNotFound /> : null}
         {isChannelClicked ? (

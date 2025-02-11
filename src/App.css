@@ -40,7 +40,7 @@
 .dFlex {
   display: flex;
 }
-.dGrid{
+.dGrid {
   display: grid;
 }
 .dInlineBlock {
@@ -48,6 +48,9 @@
 }
 .dBlock {
   display: block;
+}
+.dNone{
+  display: none;
 }
 .justifyEvenly {
   justify-content: space-evenly;
@@ -61,11 +64,13 @@
 .justifyFlexEnd {
   justify-content: flex-end;
 }
-
-.alignCenter{
+.justifySpaceBetween{
+  justify-content: space-between;
+}
+.alignCenter {
   align-items: center;
 }
-.alignFlexStart{
+.alignFlexStart {
   align-items: flex-start;
 }
 .formContainer {
@@ -94,7 +99,7 @@ input {
   grid-template-rows: 1fr; /* Single row */
   height: 100vh; /* Full viewport height */
 }
-.rightSided{
+.rightSided {
   display: grid;
   grid-template-columns: 15% 85%; /* Two equal columns */
 }
@@ -106,98 +111,98 @@ input {
 .bgDanger {
   background-color: #d9534f;
 }
-.bgPrimary{
+.bgPrimary {
   background-color: #0275d8;
 }
-.bgSecondary{
+.bgSecondary {
   background-color: #6c757d;
 }
-.bgInfo{
+.bgInfo {
   background-color: #5bc0de;
 }
-.bgSuccess{
+.bgSuccess {
   background-color: #5cb85c;
 }
-.bgWarning{
+.bgWarning {
   background-color: #f0ad4e;
 }
-.bgInverse{
+.bgInverse {
   background-color: #292b2c;
 }
-.btnFaded{
+.btnFaded {
   border-color: #292b2c;
   background-color: #f7f7f7;
 }
-.bgBlack1{
+.bgBlack1 {
   background-color: #1e1f22;
 }
-.bgBlack2{
+.bgBlack2 {
   background-color: #313338;
 }
-.bgBlack3{
+.bgBlack3 {
   background-color: #2b2d31;
 }
-.bgBlack4{
+.bgBlack4 {
   background-color: #404249;
 }
-.textDanger{
+.textDanger {
   color: #d9534f;
 }
-.textPrimary{
+.textPrimary {
   color: #0275d8;
 }
-.textInfo{
+.textInfo {
   color: #5bc0de;
 }
-.textSuccess{
+.textSuccess {
   color: #5cb85c;
 }
-.textWarning{
-color: #f0ad4e;
+.textWarning {
+  color: #f0ad4e;
 }
-.textInverse{
+.textInverse {
   color: #292b2c;
 }
-.textFaded{
+.textFaded {
   color: #f7f7f7;
 }
-svg{
+svg {
   width: 2em;
   height: 2em;
 }
 
-.btnRounded{
+.btnRounded {
   border-radius: 50%;
 }
 
-.form{
+.form {
   border: 1px solid black;
   padding: 6vh;
   border-radius: 4vh;
   background-color: white;
 }
 
-.posRelative{
+.posRelative {
   position: relative;
 }
 
-.posAbsolute{
+.posAbsolute {
   position: absolute;
 }
 
-.posSticky{
+.posSticky {
   position: sticky;
 }
-.left50{
+.left50 {
   left: 50%;
 }
-.right50{
+.right50 {
   right: 50%;
 }
-.top50{
+.top50 {
   top: 50%;
 }
-.button50{
+.button50 {
   bottom: 50%;
 }
 .centerWithTransform {
@@ -210,7 +215,7 @@ svg{
   ); /* Customizable translate values */
 }
 
-.overlay{
+.overlay {
   position: fixed; /* Ensures it stays relative to the viewport */
   top: 0; /* Aligns the top edge with the top of the viewport */
   left: 0; /* Aligns the left edge with the left of the viewport */
@@ -221,25 +226,44 @@ svg{
   opacity: 0.8; /* Optional: Makes it slightly transparent */
 }
 
-.borderNone{
+.borderNone {
   border: none;
 }
 
-button:hover{
+button:hover {
   cursor: pointer;
 }
 
-.avatarCircle{
+.avatarCircle {
   width: var(--avatar-size, 100px);
   height: var(--avatar-size, 100px);
   border-radius: 50%;
 }
 
-.w100{
+.w100 {
   width: 100%;
 }
 
-
-.borderFaded{
+.borderFaded {
   border: 1px #f7f7f7;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }

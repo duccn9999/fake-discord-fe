@@ -1,46 +1,66 @@
+import axios from "axios";
 import { useEffect, useState, useRef } from "react";
-const useInfiniteScroll = (fetchData) => {
+import { useSelector } from "react-redux";
+
+const useInfiniteScroll = (URL, custom, size) => {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loaderRef = useRef(null);
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const response = await fetchData(page);
-      if (response.data.length > 0) {
-        setItems((prevItems) => {
-          return [...new Set([...prevItems, ...response.data])];
-        });
-      } else {
-        setHasMore(false);
-      }
-    } catch (error) {
-      console.log("Failed to fetch items: ", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const token = useSelector((state) => state.token.value);
+
+  // Reset items and page when `custom` changes
   useEffect(() => {
-    fetchItems();
-    return () => {
-      console.log("fetching success!");
-    };
-  }, [page]);
-  const handleObserver = (entries) => {
-    const target = entries[0];
-    if (target.isIntersecting && hasMore && !loading) {
-      setPage((prevPage) => prevPage + 1);
-    }
-  };
+    setItems([]);
+    setPage(1);
+    setHasMore(true);
+  }, [custom]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, {
-      root: null,
-      rootMargin: "100px",
-      threshold: 1.0,
-    });
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await axios.get(`${URL}`, {
+          params: { custom: custom, page: page, items: size },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.data.length > 0) {
+          setItems((prevItems) => {
+            return [...new Set([...prevItems, ...response.data])];
+          });
+        } else {
+          setHasMore(false);
+        }
+      } catch (err) {
+        console.error("Error when fetching:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [page, custom, URL, token]);
+
+  // Intersection Observer for infinite scrolling
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[entries.length-1];
+        if (target.isIntersecting && hasMore && !loading) {
+          setPage((prevPage) => prevPage + 1);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "20px",
+        threshold: 1,
+      }
+    );
 
     if (loaderRef.current) {
       observer.observe(loaderRef.current);
@@ -49,7 +69,7 @@ const useInfiniteScroll = (fetchData) => {
     return () => observer.disconnect();
   }, [hasMore, loading]);
 
-  return { items, loading, loaderRef };
+  return { items, loading, hasMore, loaderRef };
 };
 
 export default useInfiniteScroll;
