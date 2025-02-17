@@ -34,6 +34,5 @@
   border: none;
   width: 90%;
   padding: 9px 10px 9px 10px;
-  margin-bottom: 6px;
-  border-radius: 5px;
+  border-radius: 5px 0 0 5px;
 }

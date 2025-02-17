@@ -6,7 +6,6 @@ import COMMON from "../../utils/Common";
 import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
 import { Channel } from "./Channel";
 import { MessagesContainer } from "./MessagesContainer";
-import useInfiniteScroll from "../../hooks/infiniteScroll";
 import axios from "axios";
 import { Navigate } from "react-router-dom";
 import { FaCog } from "react-icons/fa";
@@ -17,15 +16,15 @@ import createGroupChatHub from "../../signalR/groupChatHub";
 import createChannelHub from "../../signalR/channelHub";
 import useJwtDecode from "../../hooks/jwtDecode";
 import { useDispatch, useSelector } from "react-redux";
-import { GET_CHANNELS, ADD_CHANNEL } from "../../reducers/channelsReducer";
+import { GET_CHANNELS } from "../../reducers/channelsReducer";
 import useUploadImage from "../../hooks/uploadImage";
 import { toast } from "react-toastify";
-import { v4 as uuidv4 } from "uuid";
 import { clear } from "../../reducers/tokenReducer";
+import EditChannelForm from "../Forms/EditChannelForm";
 const UserHubContext = createContext();
 const GroupChatHubContext = createContext();
 const ChannelHubContext = createContext();
-function GroupChat({ groupChat, handleGroupChatClick }) {
+function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const groupChatHub = useContext(GroupChatHubContext);
@@ -34,6 +33,7 @@ function GroupChat({ groupChat, handleGroupChatClick }) {
       className={`${Styles.chatComponent}`}
       onClick={() => {
         handleGroupChatClick(groupChat.groupChatId);
+        groupChatTracking(groupChat);
         groupChatHub
           .invoke("OnEnterGroupChat", user.username, groupChat)
           .catch((err) => console.error("SignalR Error:", err));
@@ -148,10 +148,12 @@ function GroupChatsContainer({ handleGroupChatClick }) {
   const dispatch = useDispatch();
   const [groupChats, setGroupChats] = useState([]);
   const [groupChatHub, setGroupChatHub] = useState(null);
+  const [currentGroupChat, setCurrentGroupChat] = useState(null);
+  const [previousGroupChat, setPreviousGroupChat] = useState(null);
   useEffect(() => {
     const createHub = async () => {
       try {
-        const groupChatHub = await createGroupChatHub(token);
+        const groupChatHub = await createGroupChatHub(token, dispatch);
         setGroupChatHub(groupChatHub);
       } catch (err) {
         console.error("Error invoking OnConnected:", err);
@@ -188,6 +190,22 @@ function GroupChatsContainer({ handleGroupChatClick }) {
       console.log("Group chat displayed!!!");
     };
   }, [user.userId]);
+  // track current groupChat that user enters
+  const groupChatTracking = (value) => {
+    setCurrentGroupChat(value);
+    if (
+      currentGroupChat &&
+      value.groupChatId !== currentGroupChat.groupChatId
+    ) {
+      setPreviousGroupChat(currentGroupChat);
+    }
+  };
+  // disconnect from groupChat
+  useEffect(() => {
+    if (previousGroupChat) {
+      groupChatHub.invoke("OnLeaveGroupChat", user.username, previousGroupChat);
+    }
+  }, [previousGroupChat]);
   // Handle hover on groupChat
   if (!groupChats.length) {
     return <h2 className="textFaded">No Group Chats Found</h2>;
@@ -200,6 +218,7 @@ function GroupChatsContainer({ handleGroupChatClick }) {
             key={groupChat.groupChatId}
             groupChat={groupChat}
             handleGroupChatClick={handleGroupChatClick}
+            groupChatTracking={groupChatTracking}
           />
         ))}
       </div>
@@ -355,10 +374,12 @@ function GroupChatContent({
   isChannelClicked,
   setCreateChannelFormOpen,
   setChannelClick,
+  handleHomeDisplay,
+  channel,
+  setChannel,
 }) {
   const [isChannelExist, setChannelExist] = useState(true);
   const [groupChat, setGroupChat] = useState(null);
-  const [channel, setChannel] = useState(null);
   const [previousChannel, setPreviousChannel] = useState(null);
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
@@ -433,7 +454,7 @@ function GroupChatContent({
   }
   return (
     <>
-      <div className="header bgBlack3">
+      <div className="header bgBlack3" style={{ overflowY: "auto" }}>
         <h3 className={`textFaded ${Styles.groupChatTitle}`}>
           {groupChat ? groupChat.name : "loading..."}
         </h3>
@@ -449,6 +470,8 @@ function GroupChatContent({
           setChannelClick={setChannelClick}
           channelTracker={channelTracker}
           channelHub={channelHub}
+          handleHomeDisplay={handleHomeDisplay}
+          setChannel={setChannel}
         />
       </div>
       <div
@@ -469,6 +492,8 @@ function ChannelsContainer({
   setChannelClick,
   channelTracker,
   channelHub,
+  handleHomeDisplay,
+  setChannel,
 }) {
   const channels = useSelector((state) => state.channels.value);
   const dispatch = useDispatch();
@@ -498,13 +523,15 @@ function ChannelsContainer({
   return (
     <ChannelHubContext.Provider value={channelHub}>
       <div id="channelsContainer">
-        {channels.map((channel) => (
+        {channels.map((channel, index) => (
           <Channel
-            key={uuidv4()}
+            key={index}
             channel={channel}
             setChannelClick={setChannelClick}
             channelTracker={channelTracker}
             channelHub={channelHub}
+            handleHomeDisplay={handleHomeDisplay}
+            setChannel={setChannel}
           />
         ))}
       </div>
@@ -519,6 +546,24 @@ function CreateChannelForm({
 }) {
   const [channelName, setChannelName] = useState(null);
   const dispatch = useDispatch();
+  const [groupChatHub, setGroupChatHub] = useState(null);
+  useEffect(() => {
+    const createHub = async () => {
+      try {
+        const groupChatHub = await createGroupChatHub(token, dispatch);
+        setGroupChatHub(groupChatHub);
+      } catch (err) {
+        console.error("Error invoking OnConnected:", err);
+      }
+    };
+    createHub();
+    return () => {
+      if (groupChatHub) {
+        groupChatHub.stop();
+        console.log("SignalR connection stopped.");
+      }
+    };
+  }, [token]);
   let user = useJwtDecode(token);
   const createChannel = async (e) => {
     e.preventDefault();
@@ -537,9 +582,8 @@ function CreateChannelForm({
       }
     );
     if (response.status === 201) {
-      const data = response.data;
       onClose(true);
-      dispatch(ADD_CHANNEL(data));
+      groupChatHub.invoke("CreateChannel", response.data);
     }
     if (response.status === 401) {
       toast.error("Failed create channel: " + response.data, {
@@ -589,6 +633,8 @@ function Home() {
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [isChannelClicked, setChannelClick] = useState(false);
   const [groupChatId, setGroupChatId] = useState(null);
+  const [isHomeDisplay, setHomDisplay] = useState(true);
+  const [channel, setChannel] = useState(null);
   const dispatch = useDispatch();
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
@@ -597,6 +643,9 @@ function Home() {
     setGroupChatClick(true);
     setChannelClick(false);
     setGroupChatId(id);
+  };
+  const handleHomeDisplay = (value) => {
+    setHomDisplay(value);
   };
   useEffect(() => {
     const createHub = async () => {
@@ -625,7 +674,7 @@ function Home() {
     }
     return <Navigate to="/" />;
   }
-  return (
+  return isHomeDisplay ? (
     <UserHubContext.Provider value={userHub}>
       <div className="gridContainer">
         <div
@@ -680,7 +729,7 @@ function Home() {
             </button>
           </div>
         </div>
-        <div className={"bgBlack2 rightSided"}>
+        <div className={"bgBlack2 rightSided"} style={{ overflowY: "overlay" }}>
           {/* chat content here */}
           {isGroupChatClicked ? (
             <GroupChatContent
@@ -690,6 +739,9 @@ function Home() {
               setCreateChannelFormOpen={SetCreateChannelFormOpen}
               setGroupChatClick={setGroupChatClick}
               setChannelClick={setChannelClick}
+              handleHomeDisplay={handleHomeDisplay}
+              channel={channel}
+              setChannel={setChannel}
             />
           ) : null}
         </div>
@@ -711,6 +763,12 @@ function Home() {
         token={token}
       />
     </UserHubContext.Provider>
+  ) : (
+    <EditChannelForm
+      isHomeDisplay={isHomeDisplay}
+      handleHomeDisplay={handleHomeDisplay}
+      channel={channel}
+    />
   );
 }
 

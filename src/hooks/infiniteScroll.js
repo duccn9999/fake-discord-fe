@@ -50,7 +50,7 @@ const useInfiniteScroll = (URL, custom, size) => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        const target = entries[entries.length-1];
+        const target = entries[entries.length - 1];
         if (target.isIntersecting && hasMore && !loading) {
           setPage((prevPage) => prevPage + 1);
         }
@@ -68,7 +68,6 @@ const useInfiniteScroll = (URL, custom, size) => {
 
     return () => observer.disconnect();
   }, [hasMore, loading]);
-
   return { items, loading, hasMore, loaderRef };
 };
 

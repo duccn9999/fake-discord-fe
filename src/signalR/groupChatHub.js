@@ -1,7 +1,8 @@
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import {ADD_CHANNEL, UPDATE_CHANNEL, DELETE_CHANNEL} from "../reducers/channelsReducer";
 const URL = "https://localhost:7065/groupChatHub";
 let connection = null;
-const createGroupChatHub = async (token) => {
+const createGroupChatHub = async (token, dispatch) => {
   if (connection) {
     return connection;
   }
@@ -24,6 +25,15 @@ const createGroupChatHub = async (token) => {
   connection.on("GroupChatsRefresh", () => {
     console.log("Group chat refreshed:");
     window.location.reload();
+  });
+  connection.on("CreateChannel", (channel) => {
+    dispatch(ADD_CHANNEL(channel));
+  });
+  connection.on("UpdateChannel", (channel) => {
+    dispatch(UPDATE_CHANNEL(channel))
+  });
+  connection.on("DeleteChannel", (channel) => {
+    dispatch(DELETE_CHANNEL(channel))
   });
   return connection;
 };

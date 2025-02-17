@@ -43,9 +43,7 @@ export function MessagesContainer({ channel, channelHub }) {
     10
   );
   useEffect(() => {
-    if (items.length > 0) {
-      dispatch(GET_MESSAGES(items)); // Replace `yourAction` with your actual Redux action
-    }
+    dispatch(GET_MESSAGES(items));
   }, [items, dispatch]);
   // Add message
   const newMessage = {
@@ -68,7 +66,6 @@ export function MessagesContainer({ channel, channelHub }) {
         $("#msgInput").val("");
         setMessage("");
         channelHub.invoke("SendMessage", response.data);
-        setUpdateButtonClicked(true);
       })
       .catch((err) => {
         console.log("Error: ", err);
@@ -84,6 +81,7 @@ export function MessagesContainer({ channel, channelHub }) {
   };
   const updateMessage = async (e) => {
     e.preventDefault();
+    setUpdateButtonClicked(true);
     axios
       .put(`${COMMON.API_BASE_URL}Messages/UpdateMessage`, updatedMessage, {
         headers: {
@@ -114,7 +112,7 @@ export function MessagesContainer({ channel, channelHub }) {
         }}
       >
         {!messages
-          ? "Loading...."
+          ? ""
           : messages?.map((message, index) => (
               <Message
                 key={index}
