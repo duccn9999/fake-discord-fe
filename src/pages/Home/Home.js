@@ -17,10 +17,11 @@ import createChannelHub from "../../signalR/channelHub";
 import useJwtDecode from "../../hooks/jwtDecode";
 import { useDispatch, useSelector } from "react-redux";
 import { GET_CHANNELS } from "../../reducers/channelsReducer";
-import useUploadImage from "../../hooks/uploadImage";
 import { toast } from "react-toastify";
 import { clear } from "../../reducers/tokenReducer";
 import EditChannelForm from "../Forms/EditChannelForm";
+import { MdExpandMore } from "react-icons/md";
+import EditGroupChatForm from "../Forms/EditGroupChatForm";
 const UserHubContext = createContext();
 const GroupChatHubContext = createContext();
 const ChannelHubContext = createContext();
@@ -44,7 +45,9 @@ function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
       </div>
       <div className="dInlineBlock">
         <div className="chatName">
-          <strong className="textFaded">{groupChat.name}</strong>
+          <abbr className="textFaded" title={groupChat.name}>
+            &#8203;&#8203;&#8203;&#8203;
+          </abbr>
         </div>
       </div>
     </div>
@@ -54,39 +57,64 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [groupChatName, setGroupChatName] = useState(null);
-  const groupChatHub = useContext(GroupChatHubContext);
+  const [groupChatHub, setGroupChatHub] = useState(null);
   const token = useSelector((state) => state.token.value);
+  const dispatch = useDispatch();
   let user = useJwtDecode(token);
+
+  useEffect(() => {
+    const createHub = async () => {
+      try {
+        const groupChatHub = await createGroupChatHub(token, dispatch);
+        setGroupChatHub(groupChatHub);
+      } catch (err) {
+        console.error("Error invoking OnConnected:", err);
+      }
+    };
+    createHub();
+    return () => {
+      if (groupChatHub) {
+        groupChatHub.stop();
+        console.log("SignalR connection stopped.");
+      }
+    };
+  }, [token]);
   // Handle preview image
   useEffect(() => {
     if (!file) {
       setPreview(undefined);
       return;
     }
-    const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
-    return () => setPreview(undefined);
+    setPreview(file);
+    return () => URL.revokeObjectURL(file);
   }, [file]);
   // Handle file input change
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+        setFile(reader.result); // Base64 string
+      };
+    }
   };
-  const coverImage = useUploadImage(file);
   const createGroupChat = async (e) => {
     e.preventDefault();
     try {
       // After the image is uploaded, proceed with creating the group chat
       const GroupChat = {
         Name: groupChatName,
-        CoverImage: coverImage?.secure_url,
+        CoverImage: file,
         userCreated: user.userId,
       };
       await axios.post(`${COMMON.API_BASE_URL}GroupChats/Create`, GroupChat, {
         headers: {
           "Content-Type": "application/json",
         },
+      }).then(() => {
+        window.location.reload();
       });
-      groupChatHub.invoke("OnRefreshGroupChats");
       onClose(true); // Close the modal or perform any other actions
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -206,7 +234,6 @@ function GroupChatsContainer({ handleGroupChatClick }) {
       groupChatHub.invoke("OnLeaveGroupChat", user.username, previousGroupChat);
     }
   }, [previousGroupChat]);
-  // Handle hover on groupChat
   if (!groupChats.length) {
     return <h2 className="textFaded">No Group Chats Found</h2>;
   }
@@ -374,12 +401,14 @@ function GroupChatContent({
   isChannelClicked,
   setCreateChannelFormOpen,
   setChannelClick,
-  handleHomeDisplay,
+  handleToggleBigForms,
   channel,
   setChannel,
+  groupChat,
+  setGroupChat,
+  setEditGroupChatForm,
 }) {
   const [isChannelExist, setChannelExist] = useState(true);
-  const [groupChat, setGroupChat] = useState(null);
   const [previousChannel, setPreviousChannel] = useState(null);
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
@@ -454,10 +483,40 @@ function GroupChatContent({
   }
   return (
     <>
-      <div className="header bgBlack3" style={{ overflowY: "auto" }}>
-        <h3 className={`textFaded ${Styles.groupChatTitle}`}>
-          {groupChat ? groupChat.name : "loading..."}
-        </h3>
+      <div
+        className="header bgBlack3 posRelative"
+        style={{ overflowY: "auto" }}
+      >
+        <div className="posSticky" style={{ top: 0 }}>
+          <button
+            className="btn w100 bgBlack2 dFlex alignCenter"
+            onClick={() => {
+              $("#EditGroupChatBtn").toggle();
+            }}
+          >
+            <h3 className={`textFaded ${Styles.groupChatTitle}`}>
+              {groupChat ? groupChat.name : "loading..."}
+            </h3>
+            <MdExpandMore className="textFaded" />
+          </button>
+          <div
+            className="dNone posAbsolute w100"
+            id="EditGroupChatBtn"
+            style={{ zIndex: 1 }}
+          >
+            <button
+              className="w100 btn textFaded dFlex alignCenter justifySpaceAround"
+              style={{ backgroundColor: "black" }}
+              onClick={() => {
+                setEditGroupChatForm(true);
+                handleToggleBigForms(3);
+              }}
+            >
+              <span>Edit group chat profile</span>
+              <FaCog style={{ width: "20px" }} />
+            </button>
+          </div>
+        </div>
         <button
           className="bgBlack3 textFaded borderNone w100"
           onClick={() => setCreateChannelFormOpen(true)}
@@ -470,7 +529,7 @@ function GroupChatContent({
           setChannelClick={setChannelClick}
           channelTracker={channelTracker}
           channelHub={channelHub}
-          handleHomeDisplay={handleHomeDisplay}
+          handleToggleBigForms={handleToggleBigForms}
           setChannel={setChannel}
         />
       </div>
@@ -492,7 +551,7 @@ function ChannelsContainer({
   setChannelClick,
   channelTracker,
   channelHub,
-  handleHomeDisplay,
+  handleToggleBigForms,
   setChannel,
 }) {
   const channels = useSelector((state) => state.channels.value);
@@ -530,7 +589,7 @@ function ChannelsContainer({
             setChannelClick={setChannelClick}
             channelTracker={channelTracker}
             channelHub={channelHub}
-            handleHomeDisplay={handleHomeDisplay}
+            handleToggleBigForms={handleToggleBigForms}
             setChannel={setChannel}
           />
         ))}
@@ -630,11 +689,13 @@ function Home() {
     useState(false);
   const [isCreateChannelFormOpen, SetCreateChannelFormOpen] = useState(false);
   const [isEditProfileFormOpen, setEditProfileForm] = useState(false);
+  const [isEditGroupChatFormOpen, setEditGroupChatForm] = useState(false);
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [isChannelClicked, setChannelClick] = useState(false);
   const [groupChatId, setGroupChatId] = useState(null);
-  const [isHomeDisplay, setHomDisplay] = useState(true);
   const [channel, setChannel] = useState(null);
+  const [groupChat, setGroupChat] = useState(null);
+  const [toggleBigForms, setToggleBigForms] = useState(1);
   const dispatch = useDispatch();
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
@@ -644,8 +705,8 @@ function Home() {
     setChannelClick(false);
     setGroupChatId(id);
   };
-  const handleHomeDisplay = (value) => {
-    setHomDisplay(value);
+  const handleToggleBigForms = (value) => {
+    setToggleBigForms(value);
   };
   useEffect(() => {
     const createHub = async () => {
@@ -674,102 +735,123 @@ function Home() {
     }
     return <Navigate to="/" />;
   }
-  return isHomeDisplay ? (
-    <UserHubContext.Provider value={userHub}>
-      <div className="gridContainer">
-        <div
-          className={"bgBlack1 leftSided posRelative"}
-          style={{ overflowY: "auto" }}
-        >
-          <h3 className="textFaded">Hello, {user.username}!</h3>
-          <GroupChatsContainer handleGroupChatClick={handleGroupChatClick} />
-          <button
-            className="btn btnRounded bgSuccess"
-            onClick={() =>
-              SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
-            }
-          >
-            <FaPlus />
-          </button>
-          <div className="posSticky" style={{ bottom: 0, width: "100%" }}>
-            <div id="optBtns" style={{ display: "none" }}>
-              <button
-                className="btn bgInverse textFaded w100"
-                onClick={() => {
-                  dispatch(clear(token));
-                }}
-              >
-                <span className="dFlex alignCenter justifyEvenly">
-                  Log out <RiLogoutBoxRLine />
-                </span>
-              </button>
-              <button
-                className="btn bgSecondary textInverse w100"
-                onClick={() => setEditProfileForm(true)}
-              >
-                <span className="dFlex alignCenter justifyEvenly">
-                  Edit profile <FaCog />
-                </span>
-              </button>
-            </div>
-            <button
-              className="btn bgFaded textInverse w100"
-              onClick={() => $("#optBtns").toggle()}
+  switch (toggleBigForms) {
+    case 1:
+      return (
+        <UserHubContext.Provider value={userHub}>
+          <div className="gridContainer">
+            <div
+              className={"bgBlack1 leftSided posRelative"}
+              style={{ overflowY: "auto" }}
             >
-              <span className="dFlex alignCenter justifyEvenly">
-                <img
-                  alt="img"
-                  src={user.avatar}
-                  className="avatarCircle"
-                  style={{ "--avatar-size": "25px" }}
+              <h3 className="textFaded">Hello, {user.username}!</h3>
+              <GroupChatsContainer
+                handleGroupChatClick={handleGroupChatClick}
+              />
+              <button
+                className="btn btnRounded bgSuccess"
+                onClick={() =>
+                  SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
+                }
+              >
+                <FaPlus />
+              </button>
+              <div className="posSticky" style={{ bottom: 0, width: "100%" }}>
+                <div id="optBtns" style={{ display: "none" }}>
+                  <button
+                    className="btn bgInverse textFaded w100"
+                    onClick={() => {
+                      dispatch(clear(token));
+                    }}
+                  >
+                    <span className="dFlex alignCenter justifyEvenly">
+                      Log out <RiLogoutBoxRLine />
+                    </span>
+                  </button>
+                  <button
+                    className="btn bgSecondary textInverse w100"
+                    onClick={() => setEditProfileForm(true)}
+                  >
+                    <span className="dFlex alignCenter justifyEvenly">
+                      Edit profile <FaCog />
+                    </span>
+                  </button>
+                </div>
+                <button
+                  className="btn bgFaded textInverse w100"
+                  onClick={() => $("#optBtns").toggle()}
+                >
+                  <span className="dFlex alignCenter justifyEvenly">
+                    <img
+                      alt="img"
+                      src={user.avatar}
+                      className="avatarCircle"
+                      style={{ "--avatar-size": "25px" }}
+                    />
+                    Options
+                    <IoIosOptions />
+                  </span>
+                </button>
+              </div>
+            </div>
+            <div
+              className={"bgBlack2 rightSided"}
+              style={{ overflowY: "overlay" }}
+            >
+              {/* chat content here */}
+              {isGroupChatClicked ? (
+                <GroupChatContent
+                  groupChatId={groupChatId}
+                  isGroupChatClicked={isGroupChatClicked}
+                  isChannelClicked={isChannelClicked}
+                  setCreateChannelFormOpen={SetCreateChannelFormOpen}
+                  setGroupChatClick={setGroupChatClick}
+                  setChannelClick={setChannelClick}
+                  handleToggleBigForms={handleToggleBigForms}
+                  channel={channel}
+                  setChannel={setChannel}
+                  groupChat={groupChat}
+                  setGroupChat={setGroupChat}
+                  setEditGroupChatForm={setEditGroupChatForm}
                 />
-                Options
-                <IoIosOptions />
-              </span>
-            </button>
+              ) : null}
+            </div>
           </div>
-        </div>
-        <div className={"bgBlack2 rightSided"} style={{ overflowY: "overlay" }}>
-          {/* chat content here */}
-          {isGroupChatClicked ? (
-            <GroupChatContent
-              groupChatId={groupChatId}
-              isGroupChatClicked={isGroupChatClicked}
-              isChannelClicked={isChannelClicked}
-              setCreateChannelFormOpen={SetCreateChannelFormOpen}
-              setGroupChatClick={setGroupChatClick}
-              setChannelClick={setChannelClick}
-              handleHomeDisplay={handleHomeDisplay}
-              channel={channel}
-              setChannel={setChannel}
-            />
-          ) : null}
-        </div>
-      </div>
-      <CreateGroupChatForm
-        isCreateGroupChatFormOpen={isCreateGroupChatFormOpen}
-        onClose={() => SetCreateGroupChatFormOpen(false)}
-      />
-      <CreateChannelForm
-        isCreateChannelFormOpen={isCreateChannelFormOpen}
-        onClose={() => SetCreateChannelFormOpen(false)}
-        groupChatId={groupChatId}
-        token={token}
-      />
-      <EditProfileForm
-        isEditProfileFormOpen={isEditProfileFormOpen}
-        onClose={() => setEditProfileForm(false)}
-        user={user}
-        token={token}
-      />
-    </UserHubContext.Provider>
-  ) : (
-    <EditChannelForm
-      isHomeDisplay={isHomeDisplay}
-      handleHomeDisplay={handleHomeDisplay}
-      channel={channel}
-    />
-  );
+          <CreateGroupChatForm
+            isCreateGroupChatFormOpen={isCreateGroupChatFormOpen}
+            onClose={() => SetCreateGroupChatFormOpen(false)}
+          />
+          <CreateChannelForm
+            isCreateChannelFormOpen={isCreateChannelFormOpen}
+            onClose={() => SetCreateChannelFormOpen(false)}
+            groupChatId={groupChatId}
+            token={token}
+          />
+          <EditProfileForm
+            isEditProfileFormOpen={isEditProfileFormOpen}
+            onClose={() => setEditProfileForm(false)}
+            user={user}
+            token={token}
+          />
+        </UserHubContext.Provider>
+      );
+    case 2:
+      return (
+        <EditChannelForm
+          handleToggleBigForms={handleToggleBigForms}
+          channel={channel}
+        />
+      );
+    case 3:
+      return (
+        <EditGroupChatForm
+          handleToggleBigForms={handleToggleBigForms}
+          groupChat={groupChat}
+        />
+      );
+    default:
+      break;
+  }
 }
 
 export default Home;

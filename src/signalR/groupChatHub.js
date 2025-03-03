@@ -21,11 +21,6 @@ const createGroupChatHub = async (token, dispatch) => {
   connection.on("EnterGroupChat", (username, groupChat) => {
     console.log(`user ${username} has enter ${groupChat.name}!`);
   });
-
-  connection.on("GroupChatsRefresh", () => {
-    console.log("Group chat refreshed:");
-    window.location.reload();
-  });
   connection.on("CreateChannel", (channel) => {
     dispatch(ADD_CHANNEL(channel));
   });

@@ -49,7 +49,7 @@
 .dBlock {
   display: block;
 }
-.dNone{
+.dNone {
   display: none;
 }
 .justifyEvenly {
@@ -64,10 +64,10 @@
 .justifyFlexEnd {
   justify-content: flex-end;
 }
-.justifySpaceBetween{
+.justifySpaceBetween {
   justify-content: space-between;
 }
-.justifyCenter{
+.justifyCenter {
   justify-content: center;
 }
 .alignCenter {
@@ -107,7 +107,7 @@ input {
   grid-template-columns: 15% 85%; /* Two equal columns */
 }
 .btn {
-  padding: 10px;
+  padding: 6px;
   border-radius: 5px;
   border-style: none;
 }
@@ -269,4 +269,8 @@ button:hover {
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+.hidden {
+  display: none;
 }

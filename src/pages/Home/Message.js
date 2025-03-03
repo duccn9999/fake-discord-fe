@@ -12,13 +12,16 @@ export function Message({ message, handleUpdateMessage, channelHub }) {
   const user = useJwtDecode(token);
   const dispatch = useDispatch();
   //Delete message
-  const deleteMessage = async() => {
+  const deleteMessage = async () => {
     const response = await axios
-      .delete(`${COMMON.API_BASE_URL}Messages/DeleteMessage/${message.messageId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      .delete(
+        `${COMMON.API_BASE_URL}Messages/DeleteMessage/${message.messageId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
       .then((response) => {
         console.log(response.data);
         channelHub.invoke("DeleteMessage", response.data);
@@ -28,9 +31,17 @@ export function Message({ message, handleUpdateMessage, channelHub }) {
         dispatch(clear(token));
       });
     return response;
-  }
+  };
   return (
-    <div className="message">
+    <div
+      className="message"
+      onMouseEnter={() => {
+        $(`.msgOptionsBtnWrapper${message.messageId}`).show();
+      }}
+      onMouseLeave={() => {
+        $(`.msgOptionsBtnWrapper${message.messageId}`).hide();
+      }}
+    >
       <div className={"dFlex alignCenter  justifyFlexStart"}>
         <img
           className="avatarCircle"
@@ -43,45 +54,40 @@ export function Message({ message, handleUpdateMessage, channelHub }) {
         </h3>
         <p className="dNone">{message.messageId}</p>
         {user.username === message.username && (
-          <div className="dFlex" style={{ marginLeft: "auto" }}>
-            <ul style={{ listStyleType: "none" }}>
-              <li>
-                <button
-                  className="btn"
-                  style={{ padding: 5 }}
-                  onClick={() => {
-                    $(`.optionsBtn${message.messageId}`).toggle();
-                  }}
-                >
-                  <SlOptions />
-                </button>
-              </li>
-              <div
-                className={`optionsBtn${message.messageId}`}
-                style={{ display: "none" }}
+          <div
+            style={{ marginLeft: "auto" }}
+            className={`posRelative dNone msgOptionsBtnWrapper${message.messageId}`}
+          >
+            <button
+              className="btn"
+              style={{ padding: 5 }}
+              onClick={() => {
+                $(`.optionsBtn${message.messageId}`).toggle();
+              }}
+            >
+              <SlOptions />
+            </button>
+            <div
+              className={`optionsBtn${message.messageId} posAbsolute`}
+              style={{ display: "none", zIndex: 1 }}
+            >
+              <button
+                className="btn bgPrimary textFaded dBlock"
+                style={{ padding: 5 }}
+                onClick={() => {
+                  handleUpdateMessage(message.messageId, message.content);
+                }}
               >
-                <li>
-                  <button
-                    className="btn bgPrimary textFaded"
-                    style={{ padding: 5 }}
-                    onClick={() => {
-                      handleUpdateMessage(message.messageId, message.content);
-                    }}
-                  >
-                    <FaRegEdit />
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="btn bgDanger textFaded"
-                    style={{ padding: 5 }}
-                    onClick={deleteMessage}
-                  >
-                    <MdDeleteOutline />
-                  </button>
-                </li>
-              </div>
-            </ul>
+                <FaRegEdit />
+              </button>
+              <button
+                className="btn bgDanger textFaded"
+                style={{ padding: 5 }}
+                onClick={deleteMessage}
+              >
+                <MdDeleteOutline />
+              </button>
+            </div>
           </div>
         )}
       </div>

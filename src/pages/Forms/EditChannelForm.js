@@ -6,7 +6,7 @@ import axios from "axios";
 import { useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
 import useJwtDecode from "../../hooks/jwtDecode";
-export function EditChannelForm({ isHomeDisplay, handleHomeDisplay, channel }) {
+export function EditChannelForm({handleToggleBigForms, channel }) {
   const [toggle, setToggle] = useState(1);
   const [channelName, setChannelName] = useState(null);
   const [currentChannel, setCurrentChannel] = useState(channel);
@@ -25,7 +25,7 @@ export function EditChannelForm({ isHomeDisplay, handleHomeDisplay, channel }) {
     e.preventDefault();
     axios
       .put(`${COMMON.API_BASE_URL}Channels/UpdateChannel`, updatedChannel, {
-        header: {
+        headers: {
           Authorization: `Bearer ${token}`,
         },
       })
@@ -65,10 +65,8 @@ export function EditChannelForm({ isHomeDisplay, handleHomeDisplay, channel }) {
         });
       });
   };
-  if (isHomeDisplay) return null;
-
   return (
-    <div>
+    <div style={{height: "100vh"}} className="bgBlack4 textFaded">
       <div className="dGrid" style={{ gridTemplateColumns: "20% 70% 10%" }}>
         <div className="tabs">
           <div>
@@ -77,23 +75,23 @@ export function EditChannelForm({ isHomeDisplay, handleHomeDisplay, channel }) {
                 <h4>{currentChannel.channelName} Text channel</h4>
               </li>
               <li>
-                <button className="btn w100" onClick={() => updateToggle(1)}>
+                <button className="btn bgBlack3 w100 textFaded" onClick={() => updateToggle(1)}>
                   Overview
                 </button>
               </li>
               <li>
-                <button className="btn w100" onClick={() => updateToggle(2)}>
+                <button className="btn bgBlack3 w100 textFaded" onClick={() => updateToggle(2)}>
                   Permissions
                 </button>
               </li>
               <li>
-                <button className="btn w100" onClick={() => updateToggle(3)}>
+                <button className="btn bgBlack3 w100 textFaded" onClick={() => updateToggle(3)}>
                   Invites
                 </button>
               </li>
               <li>
                 <button
-                  className="btn w100 dFlex alignCenter justifyCenter"
+                  className="btn bgBlack3 w100 textFaded dFlex alignCenter justifyCenter"
                   onClick={() => deleteChannel(currentChannel.channelId)}
                 >
                   Delete
@@ -116,7 +114,7 @@ export function EditChannelForm({ isHomeDisplay, handleHomeDisplay, channel }) {
         </div>
         <div>
           <button
-            onClick={() => handleHomeDisplay(true)}
+            onClick={() => handleToggleBigForms(1)}
             style={{ float: "right" }}
             className="btn bgDanger textFaded"
           >

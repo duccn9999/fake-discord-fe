@@ -9,7 +9,7 @@ export function Channel({
   setChannelClick,
   channelTracker,
   channelHub,
-  handleHomeDisplay,
+  handleToggleBigForms,
   setChannel,
 }) {
   const token = useSelector((state) => state.token.value);
@@ -33,7 +33,7 @@ export function Channel({
         className="bgBlack2"
         style={{ border: "none", borderRadius: "0 5px 5px 0" }}
         onClick={() => {
-          handleHomeDisplay(false);
+          handleToggleBigForms(2);
           setChannel(channel);
         }}
       >
