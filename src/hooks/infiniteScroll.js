@@ -18,32 +18,42 @@ const useInfiniteScroll = (URL, custom, size) => {
   }, [custom]);
 
   useEffect(() => {
+    const controller = new AbortController(); // Create a new controller
+    const signal = controller.signal; // Extract the signal
+
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${URL}`, {
+        const response = await axios.get(URL, {
           params: { custom: custom, page: page, items: size },
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
+          signal, // Pass the signal to axios
         });
 
         if (response.data.length > 0) {
-          setItems((prevItems) => {
-            return [...new Set([...prevItems, ...response.data])];
-          });
+          setItems((prevItems) => [...new Set([...prevItems, ...response.data])]);
         } else {
           setHasMore(false);
         }
       } catch (err) {
-        console.error("Error when fetching:", err);
+        if (axios.isCancel(err)) {
+          console.log("Request canceled:", err.message);
+        } else {
+          console.error("Error when fetching:", err);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      controller.abort(); // Cancel the request if the effect is cleaned up
+    };
   }, [page, custom, URL, token]);
 
   // Intersection Observer for infinite scrolling
@@ -68,6 +78,7 @@ const useInfiniteScroll = (URL, custom, size) => {
 
     return () => observer.disconnect();
   }, [hasMore, loading]);
+
   return { items, loading, hasMore, loaderRef };
 };
 
