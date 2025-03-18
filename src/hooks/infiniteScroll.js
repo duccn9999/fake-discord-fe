@@ -18,23 +18,26 @@ const useInfiniteScroll = (URL, custom, size) => {
   }, [custom]);
 
   useEffect(() => {
-    const controller = new AbortController(); // Create a new controller
-    const signal = controller.signal; // Extract the signal
 
     const fetchData = async () => {
       setLoading(true);
       try {
         const response = await axios.get(URL, {
-          params: { custom: custom, page: page, items: size },
+          params: { custom, page, items: size },
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-          },
-          signal, // Pass the signal to axios
+          }
         });
 
-        if (response.data.length > 0) {
-          setItems((prevItems) => [...new Set([...prevItems, ...response.data])]);
+        if (response.data?.length > 0) {
+          setItems((prevItems) => {
+            const newItems = response.data.filter(
+              (newItem) =>
+                !prevItems.some((prevItem) => prevItem.id === newItem.id)
+            );
+            return [...prevItems, ...newItems];
+          });
         } else {
           setHasMore(false);
         }
@@ -50,11 +53,7 @@ const useInfiniteScroll = (URL, custom, size) => {
     };
 
     fetchData();
-
-    return () => {
-      controller.abort(); // Cancel the request if the effect is cleaned up
-    };
-  }, [page, custom, URL, token]);
+  }, [page, custom, URL, token]); // Ensure dependencies are necessary
 
   // Intersection Observer for infinite scrolling
   useEffect(() => {

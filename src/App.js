@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./App.css";
 import SignUp from "./pages/SignUp/SignUp";
 import { ToastContainer } from "react-toastify";
+import InvitePage from "./pages/Invite/InvitePage";
 function Navigator() {
   return (
     <BrowserRouter>
@@ -11,6 +12,7 @@ function Navigator() {
         <Route path="/" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/invite/:inviteCode" element={<InvitePage />} /> 
       </Routes>
     </BrowserRouter>
   );

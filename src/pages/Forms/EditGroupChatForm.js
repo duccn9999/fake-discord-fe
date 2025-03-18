@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IoIosClose } from "react-icons/io";
 import { toast } from "react-toastify";
 import { MdOutlineDelete } from "react-icons/md";
@@ -163,6 +163,12 @@ export function EditGroupChatForm({
               setEditRoleOptionToggle={setEditRoleOptionToggle}
               updateToggle={updateToggle}
             />
+            <Invite
+              groupChat={groupChat}
+              toggle={toggle}
+              user={user}
+              token={token}
+            />
           </div>
           <div>
             <button
@@ -227,7 +233,7 @@ function Overview({
               type="file"
               id="imageInput"
               accept="image/*"
-              className="hidden"
+              className="dNone"
               onChange={previewImage}
             />
             <img
@@ -310,24 +316,24 @@ function Roles({
   };
   const deleteRole = (id) => {
     axios
-    .delete(`${COMMON.API_BASE_URL}Roles/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-    .then(() => {
-      toast.success("Delete success", {
-        position: "top-right",
-        autoClose: 5000,
+      .delete(`${COMMON.API_BASE_URL}Roles/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then(() => {
+        toast.success("Delete success", {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      })
+      .catch((err) => {
+        toast.error(err, {
+          position: "top-right",
+          autoClose: 5000,
+        });
       });
-    })
-    .catch((err) => {
-      toast.error(err, {
-        position: "top-right",
-        autoClose: 5000,
-      });
-    });
-  }
+  };
   return (
     <div className={`${toggle === 2 ? "dBlock" : "dNone"}`}>
       <div className={`${editRoleOptionToggle === false ? "dBlock" : "dNone"}`}>
@@ -363,45 +369,49 @@ function Roles({
             </tr>
           </thead>
           <tbody>
-            {roles.map((role, index) => (
-              <tr key={index}>
-                <td>{role.roleName}</td>
-                <td>{role.color}</td>
-                <td>
-                  <button
-                    className="btn"
-                    style={{ padding: 5 }}
-                    onClick={() => {
-                      $(`.optionsBtn${role.roleId}`).toggle();
-                    }}
-                  >
-                    <SlOptions />
-                  </button>
-                  <div
-                    className={`optionsBtn${role.roleId} posAbsolute`}
-                    style={{ display: "none", zIndex: 1 }}
-                  >
+            {roles
+              .filter((role) => role.roleId !== 1 && role.roleId !== 2) // Exclude roleId 1 and 2
+              .map((role, index) => (
+                <tr key={index}>
+                  <td>{role.roleName}</td>
+                  <td>{role.color}</td>
+                  <td>
                     <button
-                      className="btn bgPrimary textFaded dBlock"
+                      className="btn"
                       style={{ padding: 5 }}
                       onClick={() => {
-                        setEditRoleOptionToggle(true);
-                        getRole(role.roleId);
+                        $(`.optionsBtn${role.roleId}`).toggle();
                       }}
                     >
-                      <FaRegEdit />
+                      <SlOptions />
                     </button>
-                    <button
-                      className="btn bgDanger textFaded"
-                      style={{ padding: 5 }}
-                      onClick={() => confirmDelete(() => deleteRole(role.roleId))}
+                    <div
+                      className={`optionsBtn${role.roleId} posAbsolute`}
+                      style={{ display: "none", zIndex: 1 }}
                     >
-                      <MdDeleteOutline />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      <button
+                        className="btn bgPrimary textFaded dBlock"
+                        style={{ padding: 5 }}
+                        onClick={() => {
+                          setEditRoleOptionToggle(true);
+                          getRole(role.roleId);
+                        }}
+                      >
+                        <FaRegEdit />
+                      </button>
+                      <button
+                        className="btn bgDanger textFaded"
+                        style={{ padding: 5 }}
+                        onClick={() =>
+                          confirmDelete(() => deleteRole(role.roleId))
+                        }
+                      >
+                        <MdDeleteOutline />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
@@ -445,7 +455,7 @@ function RoleTabs({ role }) {
       case 1:
         return <Display role={role} />;
       case 2:
-        return <Permissions />;
+        return <Permissions role={role} />;
       case 3:
         return <ManageMembers />;
       default:
@@ -459,12 +469,16 @@ function RoleTabs({ role }) {
         <button className="btn" onClick={() => setToggleRoleTabs(1)}>
           Display
         </button>
-        <button className="btn" onClick={() => setToggleRoleTabs(2)}>
-          Permissions
-        </button>
-        <button className="btn" onClick={() => setToggleRoleTabs(3)}>
-          Manage members
-        </button>
+        {role && (
+          <>
+            <button className="btn" onClick={() => setToggleRoleTabs(2)}>
+              Permissions
+            </button>
+            <button className="btn" onClick={() => setToggleRoleTabs(3)}>
+              Manage members
+            </button>
+          </>
+        )}
       </div>
       <div>{renderContent()}</div>
     </div>
@@ -576,12 +590,161 @@ function Display({ role }) {
   );
 }
 
-function Permissions() {
-  return <h1>Permissions</h1>;
+function Permissions({ role }) {
+  const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode(token);
+  const [permissions, setPermissions] = useState([]);
+  const [rolePermissions, setRolePermissions] = useState([]);
+  const [permission, setPermission] = useState(null);
+  // assign role
+  const assignRolePermission = (permission) => {
+    const rolePermissionModel = {
+      roleId: role.roleId,
+      permissionId: permission.permissionId,
+    };
+    axios
+      .post(`${COMMON.API_BASE_URL}RolePermissions`, rolePermissionModel, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        console.log(response.status);
+      })
+      .catch((err) => {
+        Error(err);
+      });
+  };
+  // get permissions
+  useEffect(() => {
+    axios
+      .get(`${COMMON.API_BASE_URL}Permissions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        setPermissions(response.data);
+      })
+      .catch((err) => {
+        Error(err);
+      });
+  }, [token]);
+  // get role permissions
+  useEffect(() => {
+    axios
+      .get(`${COMMON.API_BASE_URL}RolePermissions/${role.roleId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        setRolePermissions(response.data);
+      })
+      .catch((err) => {
+        Error(err);
+      });
+  }, [token, role]);
+
+  const togglePermission = (permission) => {
+    setRolePermissions((prev) => {
+      const exists = prev.some(
+        (x) => x.permissionId === permission.permissionId
+      );
+
+      if (exists) {
+        return prev.filter((x) => x.permissionId !== permission.permissionId);
+      } else {
+        return [...prev, permission]; // Add the permission
+      }
+    });
+  };
+  return (
+    <div style={{ textAlign: "left", overflowY: "scroll", height: "80vh" }}>
+      <h1>Permissions</h1>
+      {permissions.map((permission, index) => (
+        <div key={index}>
+          <div className="dFlex alignCenter justifySpaceBetween">
+            <h3>{permission.name}</h3>
+            <div>
+              <button
+                className={`btn ${
+                  rolePermissions.some(
+                    (x) => x.permissionId === permission.permissionId
+                  )
+                    ? "bgSuccess"
+                    : "bgDanger"
+                }`}
+                onClick={() => {
+                  togglePermission(permission);
+                  setPermission(permission);
+                  assignRolePermission(permission);
+                }}
+              >
+                {rolePermissions.some(
+                  (x) => x.permissionId === permission.permissionId
+                )
+                  ? "V"
+                  : "X"}
+              </button>
+            </div>
+          </div>
+          <p>{permission.description}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ManageMembers() {
   return <h1>Manage Members</h1>;
 }
+function Invite({ groupChat, toggle, user, token }) {
+  const [inviteCode, setInviteCode] = useState(null);
+  const [inviteLink, setInviteLink] = useState("");
 
+  useEffect(() => {
+    axios
+      .get(
+        `${COMMON.API_BASE_URL}GroupChats/GetInviteCode/${groupChat.groupChatId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        setInviteCode(response.data);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }, [groupChat.groupChatId, token]);
+
+  useEffect(() => {
+    if (inviteCode) {
+      setInviteLink(`${COMMON.CLIENT_BASE_URL}invite/${inviteCode}`);
+    }
+  }, [inviteCode]);
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteLink).then(
+      () => alert("Invite link copied to clipboard!"),
+      (err) => console.error("Failed to copy:", err)
+    );
+  };
+  return (
+    <div className={`${toggle === 3 ? "dBlock" : "dNone"}`}>
+      <h4>Invite</h4>
+      <div className="dFlex justifyCenter">
+        <div className="bgBlack2" style={{ padding: "5px" }}>
+          {inviteCode || "Loading..."}
+        </div>
+        <button onClick={copyInviteLink} disabled={!inviteLink} className="btn">
+          Copy
+        </button>
+      </div>
+    </div>
+  );
+}
 export default EditGroupChatForm;

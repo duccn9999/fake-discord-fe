@@ -132,7 +132,7 @@ input {
 .bgInverse {
   background-color: #292b2c;
 }
-.btnFaded {
+.bgFaded {
   border-color: #292b2c;
   background-color: #f7f7f7;
 }
@@ -270,7 +270,8 @@ button:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
-
-.hidden {
-  display: none;
+.disabledRow {
+  pointer-events: none;
+  opacity: 0.6; /* Optional: Makes it look disabled */
 }
+
