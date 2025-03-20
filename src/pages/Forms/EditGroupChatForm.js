@@ -141,6 +141,14 @@ export function EditGroupChatForm({
                     <MdOutlineDelete />
                   </button>
                 </li>
+                <li>
+                  <button
+                    className="btn bgBlack3 w100 textFaded"
+                    onClick={() => updateToggle(4)}
+                  >
+                    Members
+                  </button>
+                </li>
               </ul>
             </div>
           </div>
@@ -287,18 +295,21 @@ function Roles({
   };
   useEffect(() => {
     axios
-      .get(`${COMMON.API_BASE_URL}Roles`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+      .get(
+        `${COMMON.API_BASE_URL}UserRoles/GetNumberOfUserByEachRole/${groupChat.groupChatId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
       .then((response) => {
         setRoles(response.data);
       })
       .catch((err) => {
         Error(err);
       });
-  }, [token]);
+  }, [token, groupChat]);
 
   const getRole = (id) => {
     axios
@@ -364,7 +375,7 @@ function Roles({
           <thead>
             <tr>
               <th>Role</th>
-              <th>Members</th>
+              <th>Total</th>
               <th></th>
             </tr>
           </thead>
@@ -374,7 +385,7 @@ function Roles({
               .map((role, index) => (
                 <tr key={index}>
                   <td>{role.roleName}</td>
-                  <td>{role.color}</td>
+                  <td>{role.total}</td>
                   <td>
                     <button
                       className="btn"
@@ -433,7 +444,7 @@ function Roles({
           </div>
           <div id="right">
             <h4>{role ? "Edit role" : "Create role"}</h4>
-            <RoleTabs role={role} />
+            <RoleTabs role={role} groupChat={groupChat} />
           </div>
         </div>
       </div>
@@ -447,17 +458,17 @@ function Roles({
   );
 }
 // role tabs
-function RoleTabs({ role }) {
+function RoleTabs({ role, groupChat }) {
   const [toggleRoleTabs, setToggleRoleTabs] = useState(1);
 
   const renderContent = () => {
     switch (toggleRoleTabs) {
       case 1:
-        return <Display role={role} />;
+        return <Display role={role} groupChat={groupChat} />;
       case 2:
         return <Permissions role={role} />;
       case 3:
-        return <ManageMembers />;
+        return <ManageMembers role={role} groupChat={groupChat} />;
       default:
         return null;
     }
@@ -485,7 +496,7 @@ function RoleTabs({ role }) {
   );
 }
 
-function Display({ role }) {
+function Display({ role, groupChat }) {
   const [roleName, setRoleName] = useState("");
   const [color, setColor] = useState("#000000");
   const token = useSelector((state) => state.token.value);
@@ -506,6 +517,7 @@ function Display({ role }) {
       roleName: roleName,
       color: color,
       userCreated: user.userId,
+      groupChatId: groupChat.groupChatId,
     };
     axios
       .post(`${COMMON.API_BASE_URL}Roles`, newRole, {
@@ -696,8 +708,178 @@ function Permissions({ role }) {
   );
 }
 
-function ManageMembers() {
-  return <h1>Manage Members</h1>;
+function ManageMembers({ role, groupChat }) {
+  const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode(token);
+  const [userCountByEachRole, setUserCountByEachRole] = useState(null);
+  const [usersByEachRole, setUsersByEachRole] = useState([]);
+  const [usersNotInRole, setUsersNotInRole] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const closeOverlay = () => {
+    setIsOpen(false);
+  };
+  const handleCheckboxChange = (userId) => {
+    setSelectedUsers(
+      (prevSelected) =>
+        prevSelected.includes(userId)
+          ? prevSelected.filter((id) => id !== userId) // Uncheck
+          : [...prevSelected, userId] // Check
+    );
+  };
+  useEffect(() => {
+    axios
+      .get(
+        `${COMMON.API_BASE_URL}UserRoles/GetNumberOfUserByRole/${groupChat.groupChatId}/${role.roleId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        setUserCountByEachRole(response.data);
+      })
+      .catch((err) => {
+        console.error("Error fetching data:", err);
+      });
+  }, [groupChat.groupChatId, role.roleId, token]);
+  // get list of user by each role
+  useEffect(() => {
+    axios
+      .get(
+        `${COMMON.API_BASE_URL}UserRoles/GetUsersByEachRole/${groupChat.groupChatId}/${role.roleId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        setUsersByEachRole(response.data);
+      })
+      .catch((err) => {
+        console.error("Error fetching data:", err);
+      });
+  }, [token, groupChat.groupChatId, role.roleId]);
+  // get list of user that not in specific role
+  useEffect(() => {
+    axios
+      .get(
+        `${COMMON.API_BASE_URL}UserRoles/GetUsersNotInRole/${groupChat.groupChatId}/${role.roleId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        setUsersNotInRole(response.data);
+      })
+      .catch((err) => {
+        console.error("Error fetching data:", err);
+      });
+  }, [token, groupChat.groupChatId, role.roleId]);
+  // assign user with role
+  const assignRole = (e) => {
+    e.preventDefault();
+    const AssignRoleDto = {
+      roleId: role.roleId,
+      userIds: selectedUsers,
+    };
+    axios
+      .post(`${COMMON.API_BASE_URL}UserRoles/AssignRole`, AssignRoleDto, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        console.log(response);
+        toast.success("Assign success", {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      })
+      .catch((err) => {
+        console.log(err);
+        toast.error(err.response?.data?.message || "Failed to assign role!", {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      });
+  };
+  return (
+    <>
+      <div>
+        {usersByEachRole === null || usersByEachRole.length === 0 ? (
+          <p>
+            No members were found.{" "}
+            <button
+              onClick={() => setIsOpen(true)}
+              className="btn bgSuccess textFaded"
+            >
+              Add Members
+            </button>
+          </p>
+        ) : (
+          <p>Total members: {usersByEachRole.length}</p>
+        )}
+      </div>
+
+      {isOpen && (
+        <div
+          onClick={closeOverlay} // Click outside to close overlay
+          className="dFlex alignCenter justifyCenter overlay"
+        >
+          {/* Modal Content (Click inside won't close) */}
+          <div
+            onClick={(event) => event.stopPropagation()} // Prevent closing when clicking inside
+            style={{ padding: "2rem" }}
+            className="bgBlack4"
+          >
+            <h1>
+              Add members for{" "}
+              <span style={{ color: `${role.color}` }}>{role.roleName}</span>
+            </h1>
+            <div>
+              <form onSubmit={assignRole}>
+                {usersNotInRole.map((user, index) => (
+                  <div
+                    key={index}
+                    style={{ zIndex: 1001 }}
+                    className="dFlex alignCenter justifySpaceBetween"
+                  >
+                    <div>
+                      <img
+                        src={`${user.coverImage}`}
+                        alt="img"
+                        style={{ width: "70px", height: "70px" }}
+                      />
+                      <span>{user.userName}</span>
+                    </div>
+                    <div>
+                      <input
+                        type="checkbox"
+                        checked={selectedUsers.includes(user.userId)}
+                        onChange={() => handleCheckboxChange(user.userId)}
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          cursor: "pointer",
+                          accentColor: "#5cb85c",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button className="btn bgSuccess textFaded">Submit</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 function Invite({ groupChat, toggle, user, token }) {
   const [inviteCode, setInviteCode] = useState(null);
