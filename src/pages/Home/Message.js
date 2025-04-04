@@ -7,9 +7,16 @@ import axios from "axios";
 import $ from "jquery";
 import COMMON from "../../utils/Common";
 import { clear } from "../../reducers/tokenReducer";
-export function Message({ message, handleUpdateMessage, channelHub }) {
+import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
+export function Message({
+  message,
+  handleUpdateMessage,
+  channelHub,
+  groupChatId,
+}) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
+  const permissions = useRolePermissionsOfUserInGroupChat(groupChatId);
   const dispatch = useDispatch();
   //Delete message
   const deleteMessage = async () => {
@@ -53,7 +60,8 @@ export function Message({ message, handleUpdateMessage, channelHub }) {
           {message.username} <small>{message.dateCreated}</small>
         </h3>
         <p className="dNone">{message.messageId}</p>
-        {user.username === message.username && (
+        {(user.username === message.username ||
+          permissions?.includes("CanManageMessages")) && (
           <div
             style={{ marginLeft: "auto" }}
             className={`posRelative dNone msgOptionsBtnWrapper${message.messageId}`}
@@ -71,15 +79,20 @@ export function Message({ message, handleUpdateMessage, channelHub }) {
               className={`optionsBtn${message.messageId} posAbsolute`}
               style={{ display: "none", zIndex: 1 }}
             >
-              <button
-                className="btn bgPrimary textFaded dBlock"
-                style={{ padding: 5 }}
-                onClick={() => {
-                  handleUpdateMessage(message.messageId, message.content);
-                }}
-              >
-                <FaRegEdit />
-              </button>
+              {/* Only show edit button if the user owns the message */}
+              {user.username === message.username && (
+                <button
+                  className="btn bgPrimary textFaded dBlock"
+                  style={{ padding: 5 }}
+                  onClick={() => {
+                    handleUpdateMessage(message.messageId, message.content);
+                  }}
+                >
+                  <FaRegEdit />
+                </button>
+              )}
+
+              {/* Delete button is shown to both owners and authorized users */}
               <button
                 className="btn bgDanger textFaded"
                 style={{ padding: 5 }}

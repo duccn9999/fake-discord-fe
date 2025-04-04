@@ -13,12 +13,13 @@ import { MdDeleteOutline } from "react-icons/md";
 import { FaArrowLeft } from "react-icons/fa";
 import $ from "jquery";
 import Modal from "../Modal/Modal";
+import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
 export function EditGroupChatForm({
   isEditGroupChatFormOpen,
   handleToggleBigForms,
   groupChat,
 }) {
-  const [toggle, setToggle] = useState(1);
+  const [toggle, setToggle] = useState(0);
   const [currentGroupChat, setCurrentGroupChat] = useState(groupChat);
   const [coverImage, setCoverImage] = useState(groupChat.coverImage);
   const [name, setName] = useState(groupChat.name);
@@ -27,6 +28,9 @@ export function EditGroupChatForm({
   const user = useJwtDecode(token);
   const [showModal, setShowModal] = useState(false);
   const [deleteAction, setDeleteAction] = useState(null);
+  const permissions = useRolePermissionsOfUserInGroupChat(
+    groupChat.groupChatId
+  );
   const updateToggle = (value) => {
     setToggle(value);
   };
@@ -91,6 +95,16 @@ export function EditGroupChatForm({
         });
       });
   };
+  // if user can edit group chat then auto click
+  useEffect(() => {
+    if (!permissions) return; // Ensure permissions is loaded before running
+    if (permissions.includes("CanEditGroupChat")) {
+      $("#overViewBtn").trigger("click");
+    } else {
+      $("#inviteBtn").trigger("click");
+    }
+  }, [permissions]); // Runs only when permissions change
+
   return (
     <>
       <div style={{ height: "100vh" }} className="bgBlack4 textFaded">
@@ -101,54 +115,66 @@ export function EditGroupChatForm({
                 <li>
                   <h4>{currentGroupChat.name} group chat's profile</h4>
                 </li>
-                <li>
-                  <button
-                    className="btn bgBlack3 w100 textFaded"
-                    onClick={() => updateToggle(1)}
-                  >
-                    Overview
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="btn bgBlack3 w100 textFaded"
-                    onClick={() => {
-                      updateToggle(2);
-                      setEditRoleOptionToggle(false);
-                    }}
-                  >
-                    Roles
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="btn bgBlack3 w100 textFaded"
-                    onClick={() => updateToggle(3)}
-                  >
-                    Invites
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="btn bgBlack3 w100 textFaded dFlex alignCenter justifyCenter"
-                    onClick={() => {
-                      confirmDelete(() =>
-                        deleteGroupChat(currentGroupChat.groupChatId)
-                      );
-                    }}
-                  >
-                    Delete
-                    <MdOutlineDelete />
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="btn bgBlack3 w100 textFaded"
-                    onClick={() => updateToggle(4)}
-                  >
-                    Members
-                  </button>
-                </li>
+                {permissions?.includes("CanEditGroupChat") && (
+                  <li>
+                    <button
+                      className="btn bgBlack3 w100 textFaded"
+                      onClick={() => updateToggle(1)}
+                      id="overViewBtn"
+                    >
+                      Overview
+                    </button>
+                  </li>
+                )}
+                {permissions?.includes("CanManageRoles") && (
+                  <li>
+                    <button
+                      className="btn bgBlack3 w100 textFaded"
+                      onClick={() => {
+                        updateToggle(2);
+                        setEditRoleOptionToggle(false);
+                      }}
+                    >
+                      Roles
+                    </button>
+                  </li>
+                )}
+                {permissions?.includes("CanCreateInvites") && (
+                  <li>
+                    <button
+                      className="btn bgBlack3 w100 textFaded"
+                      onClick={() => updateToggle(3)}
+                      id="inviteBtn"
+                    >
+                      Invites
+                    </button>
+                  </li>
+                )}
+                {permissions?.includes("CanEditGroupChat") && (
+                  <li>
+                    <button
+                      className="btn bgBlack3 w100 textFaded dFlex alignCenter justifyCenter"
+                      onClick={() => {
+                        confirmDelete(() =>
+                          deleteGroupChat(currentGroupChat.groupChatId)
+                        );
+                      }}
+                    >
+                      Delete
+                      <MdOutlineDelete />
+                    </button>
+                  </li>
+                )}
+                {permissions?.includes("CanManageMembers") && (
+                  <li>
+                    <button
+                      className="btn bgBlack3 w100 textFaded"
+                      onClick={() => updateToggle(4)}
+                    >
+                      Members
+                    </button>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
@@ -313,7 +339,7 @@ function Roles({
 
   const getRole = (id) => {
     axios
-      .get(`${COMMON.API_BASE_URL}Roles/${id}`, {
+      .get(`${COMMON.API_BASE_URL}Roles/${groupChat.groupChatId}/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -380,49 +406,47 @@ function Roles({
             </tr>
           </thead>
           <tbody>
-            {roles
-              .filter((role) => role.roleId !== 1 && role.roleId !== 2) // Exclude roleId 1 and 2
-              .map((role, index) => (
-                <tr key={index}>
-                  <td>{role.roleName}</td>
-                  <td>{role.total}</td>
-                  <td>
+            {roles.map((role, index) => (
+              <tr key={index}>
+                <td>{role.roleName}</td>
+                <td>{role.total}</td>
+                <td>
+                  <button
+                    className="btn"
+                    style={{ padding: 5 }}
+                    onClick={() => {
+                      $(`.optionsBtn${role.roleId}`).toggle();
+                    }}
+                  >
+                    <SlOptions />
+                  </button>
+                  <div
+                    className={`optionsBtn${role.roleId} posAbsolute`}
+                    style={{ display: "none", zIndex: 1 }}
+                  >
                     <button
-                      className="btn"
+                      className="btn bgPrimary textFaded dBlock"
                       style={{ padding: 5 }}
                       onClick={() => {
-                        $(`.optionsBtn${role.roleId}`).toggle();
+                        setEditRoleOptionToggle(true);
+                        getRole(role.roleId);
                       }}
                     >
-                      <SlOptions />
+                      <FaRegEdit />
                     </button>
-                    <div
-                      className={`optionsBtn${role.roleId} posAbsolute`}
-                      style={{ display: "none", zIndex: 1 }}
+                    <button
+                      className="btn bgDanger textFaded"
+                      style={{ padding: 5 }}
+                      onClick={() =>
+                        confirmDelete(() => deleteRole(role.roleId))
+                      }
                     >
-                      <button
-                        className="btn bgPrimary textFaded dBlock"
-                        style={{ padding: 5 }}
-                        onClick={() => {
-                          setEditRoleOptionToggle(true);
-                          getRole(role.roleId);
-                        }}
-                      >
-                        <FaRegEdit />
-                      </button>
-                      <button
-                        className="btn bgDanger textFaded"
-                        style={{ padding: 5 }}
-                        onClick={() =>
-                          confirmDelete(() => deleteRole(role.roleId))
-                        }
-                      >
-                        <MdDeleteOutline />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      <MdDeleteOutline />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -501,6 +525,7 @@ function Display({ role, groupChat }) {
   const [color, setColor] = useState("#000000");
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
+  console.log(user);
   // Update form inputs when role changes
   useEffect(() => {
     if (role) {
@@ -630,7 +655,7 @@ function Permissions({ role }) {
   // get permissions
   useEffect(() => {
     axios
-      .get(`${COMMON.API_BASE_URL}Permissions`, {
+      .get(`${COMMON.API_BASE_URL}Permissions/Get`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -841,7 +866,7 @@ function ManageMembers({ role, groupChat }) {
               Add members for{" "}
               <span style={{ color: `${role.color}` }}>{role.roleName}</span>
             </h1>
-            <div>
+            <div style={{ opacity: "1" }}>
               <form onSubmit={assignRole}>
                 {usersNotInRole.map((user, index) => (
                   <div

@@ -8,7 +8,7 @@ import useJwtDecode from "../../hooks/jwtDecode";
 import useInfiniteScroll from "../../hooks/infiniteScroll";
 import { Message } from "./Message";
 import $ from "jquery";
-export function MessagesContainer({ channel, channelHub }) {
+export function MessagesContainer({ channel, channelHub, groupChatId }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const messages = useSelector((state) => state.messages.value);
@@ -47,12 +47,12 @@ export function MessagesContainer({ channel, channelHub }) {
   }, [items, dispatch]);
   // Add message
   const newMessage = {
-    UserCreated: user.userId,
-    UserName: user.username,
-    Avatar: user.avatar,
-    ReplyTo: 0,
-    Content: message,
-    ChannelId: channel.channelId,
+    userCreated: user.userId,
+    userName: user.username,
+    avatar: user.avatar,
+    replyTo: 0,
+    content: message,
+    channelId: channel.channelId,
   };
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -119,6 +119,7 @@ export function MessagesContainer({ channel, channelHub }) {
                 message={message}
                 handleUpdateMessage={handleUpdateMessage}
                 channelHub={channelHub}
+                groupChatId={groupChatId}
               />
             ))}
         {loading && <p>Loading...</p>}

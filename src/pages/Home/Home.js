@@ -1,13 +1,13 @@
 import Styles from "./Home.module.css";
 import { FaPlus } from "react-icons/fa";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import $ from "jquery";
 import COMMON from "../../utils/Common";
 import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
 import { Channel } from "./Channel";
 import { MessagesContainer } from "./MessagesContainer";
 import axios from "axios";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { FaCog } from "react-icons/fa";
 import { RiLogoutBoxRLine } from "react-icons/ri";
 import { IoIosOptions } from "react-icons/io";
@@ -22,6 +22,8 @@ import { clear } from "../../reducers/tokenReducer";
 import EditChannelForm from "../Forms/EditChannelForm";
 import { MdExpandMore } from "react-icons/md";
 import EditGroupChatForm from "../Forms/EditGroupChatForm";
+import { IoHomeSharp } from "react-icons/io5";
+import { HomePageContent } from "./HomePageContent";
 const UserHubContext = createContext();
 const GroupChatHubContext = createContext();
 const ChannelHubContext = createContext();
@@ -108,13 +110,15 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
         CoverImage: file,
         userCreated: user.userId,
       };
-      await axios.post(`${COMMON.API_BASE_URL}GroupChats/Create`, GroupChat, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }).then(() => {
-        window.location.reload();
-      });
+      await axios
+        .post(`${COMMON.API_BASE_URL}GroupChats/Create`, GroupChat, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+        .then(() => {
+          window.location.reload();
+        });
       onClose(true); // Close the modal or perform any other actions
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -160,7 +164,7 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
               </div>
             )}
             <div className="inputGroup">
-              <button type="submit" className="btn bgDanger">
+              <button type="submit" className="btnSmall bgDanger">
                 Submit
               </button>
             </div>
@@ -263,11 +267,11 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user, token }) {
     if (changePassword) {
       $(".changePasswordWrapper").css("display", "block");
       $(".inputGroup:has(#password)").css("display", "none");
-      $("#changePwdBtn").text("Undo");
+      $("#changePwdbtnSmall").text("Undo");
     } else {
       $(".changePasswordWrapper").css("display", "none");
       $(".inputGroup:has(#password)").css("display", "block");
-      $("#changePwdBtn").text("Change password");
+      $("#changePwdbtnSmall").text("Change password");
     }
   }, [changePassword]);
   const updateUser = {
@@ -376,16 +380,16 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user, token }) {
             </div>
             <div className="inputGroup">
               <button
-                className="btn bgSuccess"
+                className="btnSmall bgSuccess"
                 onClick={(e) => {
                   e.preventDefault();
                   setChangePassword(!changePassword);
                 }}
-                id="changePwdBtn"
+                id="changePwdbtnSmall"
               >
                 Change Password
               </button>
-              <button type="submit" className="btn bgDanger">
+              <button type="submit" className="btnSmall bgDanger">
                 Submit
               </button>
             </div>
@@ -399,6 +403,7 @@ function GroupChatContent({
   groupChatId,
   isGroupChatClicked,
   isChannelClicked,
+  isHomeBtnClicked,
   setCreateChannelFormOpen,
   setChannelClick,
   handleToggleBigForms,
@@ -481,6 +486,9 @@ function GroupChatContent({
   if (!groupChatId) {
     return;
   }
+  if (isHomeBtnClicked) {
+    return;
+  }
   return (
     <>
       <div
@@ -489,9 +497,9 @@ function GroupChatContent({
       >
         <div className="posSticky" style={{ top: 0 }}>
           <button
-            className="btn w100 bgBlack2 dFlex alignCenter"
+            className="btnSmall w100 bgBlack2 dFlex alignCenter"
             onClick={() => {
-              $("#EditGroupChatBtn").toggle();
+              $("#EditGroupChatbtnSmall").toggle();
             }}
           >
             <h3 className={`textFaded ${Styles.groupChatTitle}`}>
@@ -501,11 +509,11 @@ function GroupChatContent({
           </button>
           <div
             className="dNone posAbsolute w100"
-            id="EditGroupChatBtn"
+            id="EditGroupChatbtnSmall"
             style={{ zIndex: 1 }}
           >
             <button
-              className="w100 btn textFaded dFlex alignCenter justifySpaceAround"
+              className="w100 btnSmall textFaded dFlex alignCenter justifySpaceAround"
               style={{ backgroundColor: "black" }}
               onClick={() => {
                 setEditGroupChatForm(true);
@@ -539,7 +547,11 @@ function GroupChatContent({
       >
         {!isChannelExist ? <MessageSectionNotFound /> : null}
         {isChannelClicked ? (
-          <MessagesContainer channel={channel} channelHub={channelHub} />
+          <MessagesContainer
+            channel={channel}
+            channelHub={channelHub}
+            groupChatId={groupChatId}
+          />
         ) : null}
       </div>
     </>
@@ -555,14 +567,20 @@ function ChannelsContainer({
   setChannel,
 }) {
   const channels = useSelector((state) => state.channels.value);
+  const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode(token);
   const dispatch = useDispatch();
   useEffect(() => {
     axios
-      .get(`${COMMON.API_BASE_URL}Channels/${groupChatId}`, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
+      .get(
+        `${COMMON.API_BASE_URL}Channels/GetChannelsByGroupChatId/${groupChatId}/${user.userId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
       .then((response) => {
         const data = response.data;
         if (!data || data.length === 0) {
@@ -591,6 +609,7 @@ function ChannelsContainer({
             channelHub={channelHub}
             handleToggleBigForms={handleToggleBigForms}
             setChannel={setChannel}
+            groupChatId={groupChatId}
           />
         ))}
       </div>
@@ -606,6 +625,55 @@ function CreateChannelForm({
   const [channelName, setChannelName] = useState(null);
   const dispatch = useDispatch();
   const [groupChatHub, setGroupChatHub] = useState(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const channelNameRef = useRef(null);
+  const [rolesByGroupChat, setRolesByGroupChat] = useState([]);
+  const [usersInGroupChat, setUsersInGroupChat] = useState([]);
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+
+  const handleCheckboxChange = (e) => {
+    setIsPrivate(e.target.checked); // `checked` gives true/false
+  };
+  const handleNextButtonClick = (e) => {
+    if (!channelNameRef.current.value.trim()) {
+      e.stopPropagation();
+    }
+  };
+  const handleRolesCheckbox = (roleId) => {
+    setSelectedRoles(
+      (prevSelectedRoles) =>
+        prevSelectedRoles.includes(roleId)
+          ? prevSelectedRoles.filter((id) => id !== roleId) // Remove if unchecked
+          : [...prevSelectedRoles, roleId] // Add if checked
+    );
+  };
+  const handleUsersCheckbox = (userId) => {
+    setSelectedUsers(
+      (prevSelectedUsers) =>
+        prevSelectedUsers.includes(userId)
+          ? prevSelectedUsers.filter((id) => id !== userId) // Remove if unchecked
+          : [...prevSelectedUsers, userId] // Add if checked
+    );
+  };
+  // handle create private channels
+  const handlePrivateChannelForm = () => {
+    if (isPrivate) {
+      $("#createChannelForm").removeClass("dBlock").addClass("dNone"); // Hide public form
+      $("#createPrivateChannelForm").removeClass("dNone").addClass("dBlock"); // Show private form
+    } else {
+      $("#createChannelForm").removeClass("dNone").addClass("dBlock"); // Show public form
+      $("#createPrivateChannelForm").addClass("dNone").removeClass("dBlock"); // Hide private form
+    }
+  };
+  // handle when user clicks the back button
+  const handleBackButtonClick = () => {
+    setIsPrivate(false);
+    setChannelName("");
+    channelNameRef.current.value = "";
+    $("#createChannelForm").removeClass("dNone").addClass("dBlock"); // Show public form
+    $("#createPrivateChannelForm").addClass("dNone").removeClass("dBlock"); // Hide private form
+  };
   useEffect(() => {
     const createHub = async () => {
       try {
@@ -627,9 +695,9 @@ function CreateChannelForm({
   const createChannel = async (e) => {
     e.preventDefault();
     const model = {
-      GroupChatId: groupChatId,
-      ChannelName: channelName,
-      UserCreated: user.userId,
+      groupChatId: groupChatId,
+      channelName: channelName,
+      userCreated: user.userId,
     };
     const response = await axios.post(
       `${COMMON.API_BASE_URL}Channels/CreateChannel`,
@@ -637,6 +705,69 @@ function CreateChannelForm({
       {
         headers: {
           "Content-Type": "application/json", // Correct header for JSON
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    if (response.status === 201) {
+      onClose(true);
+      groupChatHub.invoke("CreateChannel", response.data);
+    }
+    if (response.status === 401) {
+      toast.error("Failed create channel: " + response.data, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+      dispatch(clear(token));
+    }
+  };
+  // get roles from group chat
+  useEffect(() => {
+    axios
+      .get(`${COMMON.API_BASE_URL}Roles/GetRolesByGroupChat/${groupChatId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        setRolesByGroupChat(response.data);
+      })
+      .catch((err) => {
+        Error(err);
+      });
+  }, [groupChatId, token]);
+  // get members from group chat
+  useEffect(() => {
+    axios
+      .get(`${COMMON.API_BASE_URL}Users/GetUsersInGroupChat/${groupChatId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        setUsersInGroupChat(response.data);
+      })
+      .catch((err) => {
+        Error(err);
+      });
+  }, [groupChatId, token]);
+  // create private channel
+  const createPrivateChannel = async (e) => {
+    e.preventDefault();
+    const model = {
+      groupChatId: groupChatId,
+      channelName: channelName,
+      userCreated: user.userId,
+      roles: selectedRoles,
+      users: selectedUsers,
+    };
+    const response = await axios.post(
+      `${COMMON.API_BASE_URL}Channels/CreatePrivateChannel`,
+      model, // Axios automatically stringifies JSON
+      {
+        headers: {
+          "Content-Type": "application/json", // Correct header for JSON
+          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -657,28 +788,142 @@ function CreateChannelForm({
   }
   return (
     <>
-      <div className="overlay" onClick={onClose}>
+      <div
+        className="overlay dFlex alignCenter justifyCenter"
+        onClick={() => {
+          onClose();
+          setIsPrivate(false);
+        }}
+      >
         <div
-          className="formContainer posAbsolute centerWithTransform"
           onClick={(e) => e.stopPropagation()}
+          style={{ padding: "3rem", borderRadius: "10%" }}
+          className="bgFaded"
         >
-          <form onSubmit={createChannel} className="form">
-            <h2>Create Channel</h2>
-            <p className="error textDanger"></p>
-            <div className="inputGroup">
-              <label htmlFor="channelName">Channel Name</label>
-              <input
-                type="text"
-                id="channelName"
-                onChange={(e) => setChannelName(e.target.value)}
-              />
-            </div>
-            <div className="inputGroup">
-              <button type="submit" className="btn bgDanger">
-                Submit
-              </button>
-            </div>
-          </form>
+          <div id="createChannelForm" className="dBlock">
+            {/* public channel form */}
+            <form onSubmit={createChannel}>
+              <h2>Create Channel</h2>
+              <p className="error textDanger"></p>
+              <div className="inputGroup">
+                <label htmlFor="channelName">Channel Name</label>
+                <input
+                  type="text"
+                  id="channelName"
+                  ref={channelNameRef}
+                  placeholder="Enter channel name"
+                  onChange={(e) => setChannelName(e.target.value)}
+                />
+              </div>
+              <div className="inputGroup dFlex alignCenter">
+                <input
+                  style={{ width: "1rem" }}
+                  type="checkbox"
+                  id="isPrivate"
+                  value="true"
+                  checked={isPrivate}
+                  onChange={handleCheckboxChange}
+                />
+                <label htmlFor="isPrivate">Private channel</label>
+              </div>
+              {!isPrivate && (
+                <div className="inputGroup">
+                  <button type="submit" className="btn bgDanger">
+                    Submit
+                  </button>
+                </div>
+              )}
+            </form>
+            {isPrivate && (
+              <div>
+                <button
+                  disabled={$("#channelName").val()?.trim() === ""}
+                  className="btn bgSuccess"
+                  onClick={() => {
+                    handleNextButtonClick();
+                    handlePrivateChannelForm();
+                  }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+          <div id="createPrivateChannelForm" className="dNone">
+            <form onSubmit={createPrivateChannel}>
+              <h2>Add members or roles</h2>
+              <div className="inputGroup dFlex alignCenter">
+                <input
+                  type="text"
+                  placeholder="Enter member's name or role's name"
+                />
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <label>
+                  <strong>Roles</strong>
+                </label>
+                {rolesByGroupChat.map((role, index) => (
+                  <div
+                    key={index}
+                    className="dFlex alignCenter justifySpaceBetween"
+                  >
+                    <p style={{ color: role.color, fontWeight: "bold" }}>
+                      {role.roleName}
+                    </p>
+                    <div>
+                      <input
+                        type="checkbox"
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          cursor: "pointer",
+                          accentColor: "#5cb85c",
+                        }}
+                        checked={selectedRoles.includes(role.roleId)}
+                        onChange={() => handleRolesCheckbox(role.roleId)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="inputGroup">
+                <label>Members</label>
+                {usersInGroupChat.map((user, index) => (
+                  <div
+                    key={index}
+                    className="dFlex alignCenter justifySpaceBetween"
+                  >
+                    <p style={{ fontWeight: "bold" }}>{user.userName}</p>
+                    <div>
+                      <input
+                        type="checkbox"
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          cursor: "pointer",
+                          accentColor: "#5cb85c",
+                        }}
+                        checked={selectedUsers.includes(user.userId)}
+                        onChange={() => handleUsersCheckbox(user.userId)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="inputGroup dFlex alignCenter justifySpaceBetween">
+                <button
+                  type="button"
+                  className="btn bgSecondary textFaded"
+                  onClick={handleBackButtonClick}
+                >
+                  Back
+                </button>
+                <button type="submit" className="btn bgSuccess textFaded">
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </>
@@ -692,6 +937,7 @@ function Home() {
   const [isEditGroupChatFormOpen, setEditGroupChatForm] = useState(false);
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [isChannelClicked, setChannelClick] = useState(false);
+  const [isHomeBtnClicked, setHomeBtnClick] = useState(false);
   const [groupChatId, setGroupChatId] = useState(null);
   const [channel, setChannel] = useState(null);
   const [groupChat, setGroupChat] = useState(null);
@@ -704,6 +950,7 @@ function Home() {
     setGroupChatClick(true);
     setChannelClick(false);
     setGroupChatId(id);
+    setHomeBtnClick(false);
   };
   const handleToggleBigForms = (value) => {
     setToggleBigForms(value);
@@ -713,8 +960,10 @@ function Home() {
       try {
         if (token) {
           const hub = await createUserHub(token);
-          hub.invoke("OnConnected", user.username);
-          setUserHub(hub);
+          if (hub) {
+            hub.invoke("OnConnected", user.username);
+            setUserHub(hub);
+          }
         }
       } catch (err) {
         console.error("Error invoking OnConnected:", err);
@@ -733,8 +982,9 @@ function Home() {
     if (userHub) {
       userHub.stop(); // Stop SignalR connection if token is cleared
     }
-    return <Navigate to="/" />;
+    return <Navigate to={"/"} />;
   }
+
   switch (toggleBigForms) {
     case 1:
       return (
@@ -744,12 +994,22 @@ function Home() {
               className={"bgBlack1 leftSided posRelative"}
               style={{ overflowY: "auto" }}
             >
-              <h3 className="textFaded">Hello, {user.username}!</h3>
+              <div>
+                <button
+                  className="btn bgBlack3 textFaded"
+                  onClick={() => {
+                    setHomeBtnClick(true);
+                    setGroupChatClick(false);
+                  }}
+                >
+                  <IoHomeSharp />
+                </button>
+              </div>
               <GroupChatsContainer
                 handleGroupChatClick={handleGroupChatClick}
               />
               <button
-                className="btn btnRounded bgSuccess"
+                className="btnSmall btnSmallRounded bgSuccess"
                 onClick={() =>
                   SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
                 }
@@ -757,9 +1017,9 @@ function Home() {
                 <FaPlus />
               </button>
               <div className="posSticky" style={{ bottom: 0, width: "100%" }}>
-                <div id="optBtns" style={{ display: "none" }}>
+                <div id="optbtnSmalls" style={{ display: "none" }}>
                   <button
-                    className="btn bgInverse textFaded w100"
+                    className="btnSmall bgInverse textFaded w100"
                     onClick={() => {
                       dispatch(clear(token));
                     }}
@@ -769,7 +1029,7 @@ function Home() {
                     </span>
                   </button>
                   <button
-                    className="btn bgSecondary textInverse w100"
+                    className="btnSmall bgSecondary textInverse w100"
                     onClick={() => setEditProfileForm(true)}
                   >
                     <span className="dFlex alignCenter justifyEvenly">
@@ -778,8 +1038,8 @@ function Home() {
                   </button>
                 </div>
                 <button
-                  className="btn bgFaded textInverse w100"
-                  onClick={() => $("#optBtns").toggle()}
+                  className="btnSmall bgFaded textInverse w100"
+                  onClick={() => $("#optbtnSmalls").toggle()}
                 >
                   <span className="dFlex alignCenter justifyEvenly">
                     <img
@@ -803,6 +1063,7 @@ function Home() {
                 <GroupChatContent
                   groupChatId={groupChatId}
                   isGroupChatClicked={isGroupChatClicked}
+                  isHomeBtnClicked={isHomeBtnClicked}
                   isChannelClicked={isChannelClicked}
                   setCreateChannelFormOpen={SetCreateChannelFormOpen}
                   setGroupChatClick={setGroupChatClick}
@@ -814,7 +1075,9 @@ function Home() {
                   setGroupChat={setGroupChat}
                   setEditGroupChatForm={setEditGroupChatForm}
                 />
-              ) : null}
+              ) : (
+                <HomePageContent />
+              )}
             </div>
           </div>
           <CreateGroupChatForm

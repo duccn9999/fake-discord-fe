@@ -4,6 +4,7 @@ import {
   DELETE_MESSAGE,
   UPDATE_MESSAGE,
 } from "../reducers/messagesReducer";
+/* use for bot channels type */
 const URL = "https://localhost:7065/channelHub";
 let connection = null;
 const createChannelHub = async (token, dispatch) => {
@@ -26,6 +27,7 @@ const createChannelHub = async (token, dispatch) => {
   });
   connection.on("SendMessage", (message) => {
     dispatch(ADD_MESSAGE(message));
+    console.log("message: ", message);
   });
   connection.on("UpdateMessage", (message) => {
     dispatch(UPDATE_MESSAGE(message));

@@ -31,7 +31,7 @@ function InvitePage() {
   const joinGroupChat = () => {
     axios
       .post(
-        `${COMMON.API_BASE_URL}UserGroupChats/Invite`,
+        `${COMMON.API_BASE_URL}GroupChats/Invite`,
         {
           userId: user?.userId, // Optional chaining to prevent errors if `user` is null
           groupChatId: groupChat?.groupChatId, // Optional chaining to prevent errors if `groupChat` is null

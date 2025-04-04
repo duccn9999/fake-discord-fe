@@ -106,8 +106,13 @@ input {
   display: grid;
   grid-template-columns: 15% 85%; /* Two equal columns */
 }
-.btn {
+.btnSmall {
   padding: 6px;
+  border-radius: 5px;
+  border-style: none;
+}
+.btn {
+  padding: 10px;
   border-radius: 5px;
   border-style: none;
 }
@@ -274,4 +279,3 @@ button:hover {
   pointer-events: none;
   opacity: 0.6; /* Optional: Makes it look disabled */
 }
-
