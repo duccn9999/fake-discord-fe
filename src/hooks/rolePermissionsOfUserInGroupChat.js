@@ -30,7 +30,7 @@ const useRolePermissionsOfUserInGroupChat = (groupChatId) => {
       .catch((err) => {
         console.error("Failed to fetch role permissions:", err);
       });
-  }, [groupChatId, token]); // Only run when groupChatId or token changes
+  }, [token, groupChatId]); // Only run when groupChatId or token changes
   return permissions;
 };
 export default useRolePermissionsOfUserInGroupChat;

@@ -14,6 +14,7 @@ import { FaArrowLeft } from "react-icons/fa";
 import $ from "jquery";
 import Modal from "../Modal/Modal";
 import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
+import { left } from "@cloudinary/url-gen/qualifiers/textAlignment";
 export function EditGroupChatForm({
   isEditGroupChatFormOpen,
   handleToggleBigForms,
@@ -108,77 +109,70 @@ export function EditGroupChatForm({
   return (
     <>
       <div style={{ height: "100vh" }} className="bgBlack4 textFaded">
-        <div className="dGrid" style={{ gridTemplateColumns: "20% 70% 10%" }}>
-          <div className="tabs">
-            <div>
-              <ul style={{ listStyleType: "none", textAlign: "left" }}>
-                <li>
-                  <h4>{currentGroupChat.name} group chat's profile</h4>
-                </li>
-                {permissions?.includes("CanEditGroupChat") && (
-                  <li>
-                    <button
-                      className="btn bgBlack3 w100 textFaded"
-                      onClick={() => updateToggle(1)}
-                      id="overViewBtn"
-                    >
-                      Overview
-                    </button>
-                  </li>
-                )}
-                {permissions?.includes("CanManageRoles") && (
-                  <li>
-                    <button
-                      className="btn bgBlack3 w100 textFaded"
-                      onClick={() => {
-                        updateToggle(2);
-                        setEditRoleOptionToggle(false);
-                      }}
-                    >
-                      Roles
-                    </button>
-                  </li>
-                )}
-                {permissions?.includes("CanCreateInvites") && (
-                  <li>
-                    <button
-                      className="btn bgBlack3 w100 textFaded"
-                      onClick={() => updateToggle(3)}
-                      id="inviteBtn"
-                    >
-                      Invites
-                    </button>
-                  </li>
-                )}
-                {permissions?.includes("CanEditGroupChat") && (
-                  <li>
-                    <button
-                      className="btn bgBlack3 w100 textFaded dFlex alignCenter justifyCenter"
-                      onClick={() => {
-                        confirmDelete(() =>
-                          deleteGroupChat(currentGroupChat.groupChatId)
-                        );
-                      }}
-                    >
-                      Delete
-                      <MdOutlineDelete />
-                    </button>
-                  </li>
-                )}
-                {permissions?.includes("CanManageMembers") && (
-                  <li>
-                    <button
-                      className="btn bgBlack3 w100 textFaded"
-                      onClick={() => updateToggle(4)}
-                    >
-                      Members
-                    </button>
-                  </li>
-                )}
-              </ul>
+        <div className="dFlex justifySpaceBetween" style={{ height: "100%" }}>
+          <div className="tabs bgBlack3">
+            <div id="groupChatProfileOption">
+              <h4>{currentGroupChat.name} group chat's profile</h4>
+              {permissions?.includes("CanEditGroupChat") && (
+                <div
+                  className="bgBlack3 textFaded"
+                  onClick={() => updateToggle(1)}
+                  id="overViewBtn"
+                >
+                  Overview
+                </div>
+              )}
+              {permissions?.includes("CanManageRoles") && (
+                <div
+                  className="bgBlack3 textFaded"
+                  onClick={() => {
+                    updateToggle(2);
+                    setEditRoleOptionToggle(false);
+                  }}
+                >
+                  Roles
+                </div>
+              )}
+              {permissions?.includes("CanCreateInvites") && (
+                <div
+                  className="bgBlack3 textFaded"
+                  onClick={() => updateToggle(3)}
+                  id="inviteBtn"
+                >
+                  Invites
+                </div>
+              )}
+              {permissions?.includes("CanEditGroupChat") && (
+                <div
+                  className="bgBlack3 textFaded dFlex alignCenter justifyCenter"
+                  onClick={() => {
+                    confirmDelete(() =>
+                      deleteGroupChat(currentGroupChat.groupChatId)
+                    );
+                  }}
+                >
+                  Delete
+                  <MdOutlineDelete />
+                </div>
+              )}
+              {permissions?.includes("CanManageMembers") && (
+                <div
+                  className="bgBlack3 textFaded"
+                  onClick={() => updateToggle(4)}
+                >
+                  Members
+                </div>
+              )}
             </div>
           </div>
-          <div className="tabContent">
+          <div
+            className="tabContent w100"
+            style={{
+              textAlign: "left",
+              flexGrow: 1,
+              padding: "0 2rem 0 2rem",
+            }}
+          >
             <Overview
               groupChat={groupChat}
               toggle={toggle}
@@ -397,7 +391,7 @@ function Roles({
           </button>
         </div>
         {/* role list */}
-        <table>
+        <table className="w100">
           <thead>
             <tr>
               <th>Role</th>
@@ -410,39 +404,41 @@ function Roles({
               <tr key={index}>
                 <td>{role.roleName}</td>
                 <td>{role.total}</td>
-                <td>
-                  <button
-                    className="btn"
-                    style={{ padding: 5 }}
-                    onClick={() => {
-                      $(`.optionsBtn${role.roleId}`).toggle();
-                    }}
-                  >
-                    <SlOptions />
-                  </button>
-                  <div
-                    className={`optionsBtn${role.roleId} posAbsolute`}
-                    style={{ display: "none", zIndex: 1 }}
-                  >
+                <td className="dFlex" style={{ flexDirection: "row" }}>
+                  <div>
                     <button
-                      className="btn bgPrimary textFaded dBlock"
+                      className="btn"
                       style={{ padding: 5 }}
                       onClick={() => {
-                        setEditRoleOptionToggle(true);
-                        getRole(role.roleId);
+                        $(`.optionsBtn${role.roleId}`).toggle();
                       }}
                     >
-                      <FaRegEdit />
+                      <SlOptions />
                     </button>
-                    <button
-                      className="btn bgDanger textFaded"
-                      style={{ padding: 5 }}
-                      onClick={() =>
-                        confirmDelete(() => deleteRole(role.roleId))
-                      }
+                    <div
+                      className={`optionsBtn${role.roleId} posAbsolute`}
+                      style={{ display: "none", zIndex: 1 }}
                     >
-                      <MdDeleteOutline />
-                    </button>
+                      <button
+                        className="btn bgPrimary textFaded dBlock"
+                        style={{ padding: 5 }}
+                        onClick={() => {
+                          setEditRoleOptionToggle(true);
+                          getRole(role.roleId);
+                        }}
+                      >
+                        <FaRegEdit />
+                      </button>
+                      <button
+                        className="btn bgDanger textFaded"
+                        style={{ padding: 5 }}
+                        onClick={() =>
+                          confirmDelete(() => deleteRole(role.roleId))
+                        }
+                      >
+                        <MdDeleteOutline />
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -452,7 +448,7 @@ function Roles({
       </div>
       <div className={`${editRoleOptionToggle === true ? "dBlock" : "dNone"}`}>
         <h4>Edit roles</h4>
-        <div className="dGrid" style={{ gridTemplateColumns: "20% 80%" }}>
+        <div className="dFlex" style={{ gap: "16px" }}>
           <div id="left">
             <h4
               style={{ cursor: "pointer" }}
@@ -601,7 +597,7 @@ function Display({ role, groupChat }) {
           <input
             type="text"
             id="roleName"
-            style={{ width: "30%" }}
+            style={{ width: "280px" }}
             onChange={(e) => setRoleName(e.target.value)}
           />
         </div>
@@ -612,7 +608,7 @@ function Display({ role, groupChat }) {
             id="roleColor"
             style={{
               height: "40px",
-              width: "10%",
+              width: "63px",
               padding: "0",
               borderRadius: 0,
             }}
@@ -697,7 +693,7 @@ function Permissions({ role }) {
     });
   };
   return (
-    <div style={{ textAlign: "left", overflowY: "scroll", height: "80vh" }}>
+    <div style={{ textAlign: "left", overflowY: "scroll", height: "500px" }}>
       <h1>Permissions</h1>
       {permissions.map((permission, index) => (
         <div key={index}>

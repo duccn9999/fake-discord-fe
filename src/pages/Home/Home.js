@@ -33,7 +33,7 @@ function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
   const groupChatHub = useContext(GroupChatHubContext);
   return (
     <div
-      className={`${Styles.chatComponent}`}
+      className={`${Styles.groupChat}`}
       onClick={() => {
         handleGroupChatClick(groupChat.groupChatId);
         groupChatTracking(groupChat);
@@ -41,16 +41,10 @@ function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
           .invoke("OnEnterGroupChat", user.username, groupChat)
           .catch((err) => console.error("SignalR Error:", err));
       }}
+      data-name={groupChat.name}
     >
       <div className={`${Styles.avatar} dInlineBlock`}>
         <img src={groupChat.coverImage} alt={`img-${groupChat.groupChatId}`} />
-      </div>
-      <div className="dInlineBlock">
-        <div className="chatName">
-          <abbr className="textFaded" title={groupChat.name}>
-            &#8203;&#8203;&#8203;&#8203;
-          </abbr>
-        </div>
       </div>
     </div>
   );
@@ -490,12 +484,17 @@ function GroupChatContent({
     return;
   }
   return (
-    <>
+    <div className="dFlex">
       <div
         className="header bgBlack3 posRelative"
-        style={{ overflowY: "auto" }}
+        style={{
+          overflowY: "auto",
+          width: "10%",
+          minWidth: "150px",
+          height: "100vh",
+        }}
       >
-        <div className="posSticky" style={{ top: 0 }}>
+        <div className="posSticky" style={{ top: 0, left: 0, right: 0 }}>
           <button
             className="btnSmall w100 bgBlack2 dFlex alignCenter"
             onClick={() => {
@@ -541,20 +540,15 @@ function GroupChatContent({
           setChannel={setChannel}
         />
       </div>
-      <div
-        className="content dGrid"
-        style={{ gridTemplateRows: "auto auto 1fr", height: "100vh" }}
-      >
-        {!isChannelExist ? <MessageSectionNotFound /> : null}
-        {isChannelClicked ? (
-          <MessagesContainer
-            channel={channel}
-            channelHub={channelHub}
-            groupChatId={groupChatId}
-          />
-        ) : null}
-      </div>
-    </>
+      {!isChannelExist ? <MessageSectionNotFound /> : null}
+      {isChannelClicked ? (
+        <MessagesContainer
+          channel={channel}
+          channelHub={channelHub}
+          groupChatId={groupChatId}
+        />
+      ) : null}
+    </div>
   );
 }
 function ChannelsContainer({
@@ -989,10 +983,16 @@ function Home() {
     case 1:
       return (
         <UserHubContext.Provider value={userHub}>
-          <div className="gridContainer">
+          <div className="dFlex" style={{ height: "100vh" }}>
             <div
-              className={"bgBlack1 leftSided posRelative"}
-              style={{ overflowY: "auto" }}
+              className={"bgBlack1 leftSided dFlex alignCenter"}
+              style={{
+                overflowY: "auto",
+                minWidth: "70px",
+                flexDirection: "column",
+                height: "100vh",
+                gap: "8px",
+              }}
             >
               <div>
                 <button
@@ -1016,10 +1016,18 @@ function Home() {
               >
                 <FaPlus />
               </button>
-              <div className="posSticky" style={{ bottom: 0, width: "100%" }}>
-                <div id="optbtnSmalls" style={{ display: "none" }}>
+              <div style={{ marginTop: "auto" }}>
+                <div
+                  id="optbtnSmalls"
+                  className="posAbsolute"
+                  style={{
+                    display: "none",
+                    bottom: "39.5px",
+                    width: "68px",
+                  }}
+                >
                   <button
-                    className="btnSmall bgInverse textFaded w100"
+                    className="dBlock btnSmall bgInverse textFaded w100"
                     onClick={() => {
                       dispatch(clear(token));
                     }}
@@ -1029,7 +1037,7 @@ function Home() {
                     </span>
                   </button>
                   <button
-                    className="btnSmall bgSecondary textInverse w100"
+                    className="dBlock btnSmall bgSecondary textInverse w100"
                     onClick={() => setEditProfileForm(true)}
                   >
                     <span className="dFlex alignCenter justifyEvenly">
@@ -1037,21 +1045,24 @@ function Home() {
                     </span>
                   </button>
                 </div>
-                <button
-                  className="btnSmall bgFaded textInverse w100"
-                  onClick={() => $("#optbtnSmalls").toggle()}
-                >
-                  <span className="dFlex alignCenter justifyEvenly">
-                    <img
-                      alt="img"
-                      src={user.avatar}
-                      className="avatarCircle"
-                      style={{ "--avatar-size": "25px" }}
-                    />
-                    Options
-                    <IoIosOptions />
-                  </span>
-                </button>
+                <div>
+                  <button
+                    className="btnSmall bgFaded textInverse w100"
+                    onClick={() => {
+                      $("#optbtnSmalls").toggle();
+                    }}
+                  >
+                    <span className="dFlex alignCenter justifyEvenly">
+                      <img
+                        alt="img"
+                        src={user.avatar}
+                        className="avatarCircle"
+                        style={{ "--avatar-size": "25px" }}
+                      />
+                      <IoIosOptions />
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
             <div

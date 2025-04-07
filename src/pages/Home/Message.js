@@ -77,7 +77,7 @@ export function Message({
             </button>
             <div
               className={`optionsBtn${message.messageId} posAbsolute`}
-              style={{ display: "none", zIndex: 1 }}
+              style={{ display: "none", zIndex: 100 }}
             >
               {/* Only show edit button if the user owns the message */}
               {user.username === message.username && (

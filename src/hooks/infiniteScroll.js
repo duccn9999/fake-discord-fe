@@ -18,7 +18,6 @@ const useInfiniteScroll = (URL, custom, size) => {
   }, [custom]);
 
   useEffect(() => {
-
     const fetchData = async () => {
       setLoading(true);
       try {
@@ -27,14 +26,16 @@ const useInfiniteScroll = (URL, custom, size) => {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-          }
+          },
         });
 
         if (response.data?.length > 0) {
           setItems((prevItems) => {
             const newItems = response.data.filter(
               (newItem) =>
-                !prevItems.some((prevItem) => prevItem.id === newItem.id)
+                !prevItems.some(
+                  (prevItem) => prevItem.messageId === newItem.messageId
+                )
             );
             return [...prevItems, ...newItems];
           });
@@ -65,9 +66,9 @@ const useInfiniteScroll = (URL, custom, size) => {
         }
       },
       {
-        root: null,
-        rootMargin: "20px",
-        threshold: 1,
+        root: null, // Set the scrollable container as the root
+        rootMargin: "0px 0px 20px 0px", // Adjust margin to detect the top
+        threshold: 0.1, // Trigger when 10% of the loader is visible
       }
     );
 
