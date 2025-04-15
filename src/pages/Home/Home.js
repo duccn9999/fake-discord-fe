@@ -233,7 +233,7 @@ function GroupChatsContainer({ handleGroupChatClick }) {
     }
   }, [previousGroupChat]);
   if (!groupChats.length) {
-    return <h2 className="textFaded">No Group Chats Found</h2>;
+    return;
   }
   return (
     <GroupChatHubContext.Provider value={groupChatHub}>
@@ -940,6 +940,7 @@ function Home() {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const [userHub, setUserHub] = useState(null);
+  const hubInitialized = useRef(false);
   const handleGroupChatClick = (id) => {
     setGroupChatClick(true);
     setChannelClick(false);
@@ -950,27 +951,40 @@ function Home() {
     setToggleBigForms(value);
   };
   useEffect(() => {
+    let hubConnection = null;
     const createHub = async () => {
       try {
-        if (token) {
-          const hub = await createUserHub(token);
+        // Only create the hub if we have a token and haven't initialized it yet
+        if (token && !hubInitialized.current) {
+          // Prevent additional initialization attempts
+          hubInitialized.current = true;
+          console.log("Creating hub connection...");
+          const hub = await createUserHub(token, dispatch);
+
           if (hub) {
-            hub.invoke("OnConnected", user.username);
+            console.log("Hub created, invoking OnConnected...");
+            await hub.invoke("OnConnected", user.username);
             setUserHub(hub);
+            hubConnection = hub;
           }
         }
       } catch (err) {
+        // Reset initialization flag on error to allow retrying
+        hubInitialized.current = false;
         console.error("Error invoking OnConnected:", err);
       }
     };
-    createHub();
+    if (token && !userHub) {
+      createHub();
+    }
+    // Cleanup function
     return () => {
-      if (userHub) {
-        userHub.stop();
+      if (hubConnection) {
+        hubConnection.stop();
         console.log("SignalR connection stopped.");
       }
     };
-  }, [token]);
+  }, [token, user?.username, dispatch, setUserHub, userHub]);
   // Redirect if token is cleared or expired
   if (!token) {
     if (userHub) {
@@ -1087,7 +1101,7 @@ function Home() {
                   setEditGroupChatForm={setEditGroupChatForm}
                 />
               ) : (
-                <HomePageContent />
+                <HomePageContent userHub={userHub} />
               )}
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { IoIosClose } from "react-icons/io";
 import { toast } from "react-toastify";
 import { MdOutlineDelete } from "react-icons/md";
@@ -7,14 +7,12 @@ import { useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
 import useJwtDecode from "../../hooks/jwtDecode";
 import { SlOptions } from "react-icons/sl";
-import { FaMagnifyingGlass } from "react-icons/fa6";
 import { FaRegEdit } from "react-icons/fa";
 import { MdDeleteOutline } from "react-icons/md";
 import { FaArrowLeft } from "react-icons/fa";
 import $ from "jquery";
 import Modal from "../Modal/Modal";
 import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
-import { left } from "@cloudinary/url-gen/qualifiers/textAlignment";
 export function EditGroupChatForm({
   isEditGroupChatFormOpen,
   handleToggleBigForms,

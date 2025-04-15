@@ -1,6 +1,10 @@
 import * as signalR from "@microsoft/signalr";
+import {
+  ADD_NOTIFICATION,
+  GET_NOTIFICATIONS,
+} from "../reducers/notificationsReducer";
 const URL = "https://localhost:7065/userHub";
-const createUserHub = async (token) => {
+const createUserHub = async (token, dispatch) => {
   const connection = new signalR.HubConnectionBuilder()
     .withUrl(`${URL}?access_token=${token}`)
     .withAutomaticReconnect()
@@ -14,6 +18,15 @@ const createUserHub = async (token) => {
   }
   connection.on("UserConnected", (username) => {
     console.log(`User ${username} has connected!!`);
+  });
+  connection.on("SendFriendRequest", (notification) => {
+    dispatch(ADD_NOTIFICATION(notification));
+  });
+  connection.on("AcceptFriendRequest", (notification) => {
+    dispatch(ADD_NOTIFICATION(notification));
+  });
+  connection.on("CancelFriendRequest", (notification) => {
+    dispatch(ADD_NOTIFICATION(notification));
   });
   return connection;
 };

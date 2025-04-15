@@ -4,6 +4,7 @@ import channelsReducer from "../reducers/channelsReducer";
 import messagesReducer from "../reducers/messagesReducer";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
+import notificationsReducer from "../reducers/notificationsReducer";
 
 const persistConfig = {
   key: "token",
@@ -15,7 +16,8 @@ export const store = configureStore({
   reducer: {
     token: persistedReducer,
     channels: channelsReducer,
-    messages: messagesReducer
+    messages: messagesReducer,
+    notifications: notificationsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 
-export const initialState = { data: [] };
+export const initialState = { value: [] };
 export const channelsSlice = createSlice({
   name: "channelsSlice",
   initialState,
