@@ -21,6 +21,9 @@ const createGroupChatHub = async (token, dispatch) => {
   connection.on("EnterGroupChat", (username, groupChat) => {
     console.log(`user ${username} has enter ${groupChat.name}!`);
   });
+  connection.on("LeaveGroupChat", (lastSeenMessage) => {
+    console.log("User left the group chat. Last seen message:", lastSeenMessage);
+  });
   connection.on("CreateChannel", (channel) => {
     dispatch(ADD_CHANNEL(channel));
   });

@@ -9,18 +9,21 @@ export const messagesSlice = createSlice({
       state.value = action.payload;
     },
     ADD_MESSAGE: (state, action) => {
-      state.value.unshift(action.payload);
+      state.value = [...state.value, action.payload];
     },
     UPDATE_MESSAGE: (state, action) => {
       const index = state.value.findIndex(
         (msg) => msg.messageId === action.payload.messageId
       );
+      console.log("index: ", index);
       if (index !== -1) {
         state.value[index] = { ...state.value[index], ...action.payload }; // Update only the specific message
       }
     },
     DELETE_MESSAGE: (state, action) => {
-      state.value = state.value.filter((msg) => msg.messageId !== action.payload.messageId); // Remove message by ID
+      state.value = state.value.filter(
+        (msg) => msg.messageId !== action.payload.messageId
+      ); // Remove message by ID
     },
   },
 });

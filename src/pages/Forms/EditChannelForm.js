@@ -6,7 +6,7 @@ import axios from "axios";
 import { useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
 import useJwtDecode from "../../hooks/jwtDecode";
-export function EditChannelForm({handleToggleBigForms, channel }) {
+export function EditChannelForm({ handleToggleBigForms, channel }) {
   const [toggle, setToggle] = useState(1);
   const [channelName, setChannelName] = useState(null);
   const [currentChannel, setCurrentChannel] = useState(channel);
@@ -66,42 +66,46 @@ export function EditChannelForm({handleToggleBigForms, channel }) {
       });
   };
   return (
-    <div style={{height: "100vh"}} className="bgBlack4 textFaded">
-      <div className="dGrid" style={{ gridTemplateColumns: "20% 70% 10%" }}>
-        <div className="tabs">
-          <div>
-            <ul style={{ listStyleType: "none", textAlign: "left" }}>
-              <li>
-                <h4>{currentChannel.channelName} Text channel</h4>
-              </li>
-              <li>
-                <button className="btn bgBlack3 w100 textFaded" onClick={() => updateToggle(1)}>
-                  Overview
-                </button>
-              </li>
-              <li>
-                <button className="btn bgBlack3 w100 textFaded" onClick={() => updateToggle(2)}>
-                  Permissions
-                </button>
-              </li>
-              <li>
-                <button className="btn bgBlack3 w100 textFaded" onClick={() => updateToggle(3)}>
-                  Invites
-                </button>
-              </li>
-              <li>
-                <button
-                  className="btn bgBlack3 w100 textFaded dFlex alignCenter justifyCenter"
-                  onClick={() => deleteChannel(currentChannel.channelId)}
-                >
-                  Delete
-                  <MdOutlineDelete />
-                </button>
-              </li>
-            </ul>
+    <div style={{ height: "100vh" }} className="bgBlack4 textFaded">
+      <div className="dFlex justifySpaceBetween" style={{ height: "100%" }}>
+        <div className="tabs bgBlack3">
+          <div id="channelProfileOption">
+            <h4>{currentChannel.channelName} Text channel</h4>
+            <div
+              className="bgBlack3 textFaded"
+              onClick={() => updateToggle(1)}
+            >
+              Overview
+            </div>
+            <div
+              className="bgBlack3 textFaded"
+              onClick={() => updateToggle(2)}
+            >
+              Permissions
+            </div>
+            <div
+              className="bgBlack3 textFaded"
+              onClick={() => updateToggle(3)}
+            >
+              Invites
+            </div>
+            <div
+              className="bgBlack3 textFaded dFlex alignCenter justifyCenter"
+              onClick={() => deleteChannel(currentChannel.channelId)}
+            >
+              Delete
+              <MdOutlineDelete />
+            </div>
           </div>
         </div>
-        <div className="tabContent">
+        <div
+          className="tabContent w100"
+          style={{
+            textAlign: "left",
+            flexGrow: 1,
+            padding: "0 2rem 0 2rem",
+          }}
+        >
           <Overview
             channel={currentChannel}
             toggle={toggle}

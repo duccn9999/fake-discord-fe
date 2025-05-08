@@ -2,22 +2,18 @@ import { SlOptions } from "react-icons/sl";
 import { FaRegEdit } from "react-icons/fa";
 import { MdDeleteOutline } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
-import useJwtDecode from "../../hooks/jwtDecode";
-import axios from "axios";
-import $ from "jquery";
-import COMMON from "../../utils/Common";
-import { clear } from "../../reducers/tokenReducer";
-import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
 import { FaRegFileAlt } from "react-icons/fa";
 import { GoDownload } from "react-icons/go";
+import useJwtDecode from "../../hooks/jwtDecode";
+import axios from "axios";
 import { GoTrash } from "react-icons/go";
+import $ from "jquery";
 import { useState } from "react";
+import COMMON from "../../utils/Common";
 import Modal from "../Modal/Modal";
-export function Message({ message, channelHub, groupChatId, suggestions }) {
+const PrivateMessage = ({ message, userHub }) => {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
-  const permissions = useRolePermissionsOfUserInGroupChat(groupChatId);
-  const dispatch = useDispatch();
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const [messageId, setMessageId] = useState(null);
@@ -43,53 +39,15 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
     setModalText(modalText);
     setShowModal(true);
   };
-  // Edit message
-  const updatedMessage = {
-    MessageId: messageId,
-    Content: editValue,
-    ChannelId: message.channelId,
-  };
-  const updateMessage = async (e) => {
-    e.preventDefault();
+  /* update message */
+  const updateMessage = () => {
     axios
-      .put(`${COMMON.API_BASE_URL}Messages/UpdateMessage`, updatedMessage, {
-        headers: {
-          Authorization: `bearer ${token}`,
+      .put(
+        `${COMMON.API_BASE_URL}PrivateMessages/UpdatePrivateMessage`,
+        {
+          privateMessageId: messageId,
+          content: editValue,
         },
-      })
-      .then((response) => {
-        setEditValue("");
-        handleCancel();
-        $(`.optionsBtn${messageId}`).hide();
-        channelHub.invoke("UpdateMessage", response.data);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  };
-  //Delete message
-  const deleteMessage = async (messageId) => {
-    const response = await axios
-      .delete(`${COMMON.API_BASE_URL}Messages/DeleteMessage/${messageId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        console.log(response.data);
-        channelHub.invoke("DeleteMessage", response.data);
-      })
-      .catch((err) => {
-        console.log("Error: ", err);
-        dispatch(clear(token));
-      });
-    return response;
-  };
-  // Delete attachments
-  const deleteAttachment = async (attachmentId) => {
-    const response = await axios
-      .delete(
-        `${COMMON.API_BASE_URL}Messages/DeleteMessageAttachment/${attachmentId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -97,18 +55,61 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
         }
       )
       .then((response) => {
-        channelHub.invoke("UpdateMessage", response.data);
-      })
-      .catch((err) => {
-        console.log("Error: ", err);
-        dispatch(clear(token));
+        userHub.invoke(
+          "UpdatePrivateMessage",
+          response.data,
+          message.userId,
+          message.receiver
+        );
+        handleCancel();
+        $(`.optionsBtn${message.messageId}`).hide();
       });
-    return response;
+  };
+  /* delete attachment */
+  const deleteAttachment = (attachmentId) => {
+    axios
+      .delete(
+        `${COMMON.API_BASE_URL}PrivateMessages/DeletePrivateMessageImage/${attachmentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        userHub.invoke(
+          "DeletePrivateMessageAttachment",
+          response.data,
+          message.userId,
+          message.receiver
+        );
+        handleCancel();
+      });
+  };
+  /* delete message*/
+  const deleteMessage = (messageId) => {
+    axios
+      .delete(
+        `${COMMON.API_BASE_URL}PrivateMessages/DeletePrivateMessage/${messageId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        userHub.invoke(
+          "DeletePrivateMessage",
+          response.data,
+          message.userId,
+          message.receiver
+        );
+        handleCancel();
+      });
   };
   return (
     <div
-      className={`messageItem`}
-      id={`message${message.messageId}`}
+      className="messageItem"
       style={{ textAlign: "left" }}
       onMouseEnter={() => {
         $(`.msgOptionsBtnWrapper${message.messageId}`).show();
@@ -117,19 +118,23 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
         $(`.msgOptionsBtnWrapper${message.messageId}`).hide();
       }}
     >
-      <div className={"dFlex alignCenter  justifyFlexStart"}>
+      <div className="dFlex">
         <img
-          className="avatarCircle"
-          style={{ "--avatar-size": "40px" }}
           src={message.avatar}
-          alt="avt"
+          alt="Sender"
+          className="messageSenderImage"
+          style={{
+            width: "50px",
+            height: "50px",
+            borderRadius: "50%",
+            marginRight: "10px",
+          }}
         />
         <h3 style={{ marginTop: 0 }}>
-          {message.username} <small>{message.dateCreated}</small>
+          {message.userName} <small>{message.dateCreated}</small>
         </h3>
         <p className="dNone">{message.messageId}</p>
-        {(user.username === message.username ||
-          permissions?.includes("CanManageMessages")) && (
+        {user.username === message.userName && (
           <div
             style={{ marginLeft: "auto" }}
             className={`posRelative dNone msgOptionsBtnWrapper${message.messageId}`}
@@ -148,7 +153,7 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
               style={{ display: "none", zIndex: 100 }}
             >
               {/* Only show edit button if the user owns the message */}
-              {user.username === message.username && (
+              {user.username === message.userName && (
                 <button
                   className="btn bgPrimary textFaded dBlock"
                   style={{ padding: 5 }}
@@ -207,7 +212,7 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
           </div>
         ) : (
           <div className="messageText" style={{ marginTop: "10px" }}>
-            <StyleMessage message={message.content} suggestions={suggestions} />
+            {message.content}
           </div>
         )}
         {message.attachments && (
@@ -248,7 +253,7 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
                           className="dFlex alignCenter textInverse"
                         >
                           <FaRegFileAlt />
-                          other file
+                          {attachment.displayName}
                         </div>
                       );
                   }
@@ -264,7 +269,7 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
                   >
                     <GoDownload style={{ width: "1rem", height: "1rem" }} />
                   </a>
-                  {user.username === message.username ? (
+                  {user.username === message.userName ? (
                     <button
                       className="btnSmall bgDanger textFaded"
                       onClick={() => {
@@ -276,7 +281,9 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
                     >
                       <GoTrash style={{ width: "1rem", height: "1rem" }} />
                     </button>
-                  ) : null}
+                  ) : (
+                    null
+                  )}
                 </div>
               </div>
             ))}
@@ -291,52 +298,5 @@ export function Message({ message, channelHub, groupChatId, suggestions }) {
       />
     </div>
   );
-}
-function StyleMessage({ message, suggestions }) {
-  const messagePart = message.split(/(@\w+)/g);
-  const messageWithMentions = messagePart
-    .map((part, index) => {
-      if (part.startsWith("@")) {
-        const mentionText = part.slice(1); // Remove the '@' character
-        const suggestion = suggestions.find(
-          (s) => s.roleName === mentionText || s.userName === mentionText
-        );
-        if (suggestion) {
-          const textColor = suggestion.color || "#afb5f9";
-          const backgroundColor = HexToRgba(textColor, 0.2);
-          return `<span class="mention btn" style="
-            font-weight: bold;
-            padding: 8px;
-            border-radius: 1rem;
-            background-color: ${backgroundColor};
-            color: ${textColor};
-          ">${part}</span>`;
-        }
-      }
-      return part;
-    })
-    .join("");
-
-  return (
-    <div
-      className="messageText"
-      style={{ marginTop: "10px" }}
-      dangerouslySetInnerHTML={{ __html: messageWithMentions }}
-    />
-  );
-}
-function HexToRgba(hex, alpha = 0.2) {
-  if (!hex || typeof hex !== "string") return `rgba(0, 0, 0, ${alpha})`; // default to dim black
-  let c = hex.replace("#", "");
-  if (c.length === 3)
-    c = c
-      .split("")
-      .map((ch) => ch + ch)
-      .join("");
-  const bigint = parseInt(c, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-export default Message;
+};
+export default PrivateMessage;

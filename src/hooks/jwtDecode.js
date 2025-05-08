@@ -10,7 +10,6 @@ const useJwtDecode = (token) => {
       password: decoded.password,
       email: decoded.email,
       jti: decoded.jti,
-      roles: JSON.parse(decoded.roles),
       exp: decoded.exp,
     };
   }

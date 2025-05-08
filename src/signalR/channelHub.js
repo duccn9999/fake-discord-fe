@@ -4,6 +4,10 @@ import {
   DELETE_MESSAGE,
   UPDATE_MESSAGE,
 } from "../reducers/messagesReducer";
+import {
+  SET_MENTION_COUNT,
+  CLEAR_MENTION_COUNT,
+} from "../reducers/mentionsReducer";
 /* use for bot channels type */
 const URL = "https://localhost:7065/channelHub";
 let connection = null;
@@ -27,7 +31,6 @@ const createChannelHub = async (token, dispatch) => {
   });
   connection.on("SendMessage", (message) => {
     dispatch(ADD_MESSAGE(message));
-    console.log("message: ", message);
   });
   connection.on("UpdateMessage", (message) => {
     dispatch(UPDATE_MESSAGE(message));
@@ -35,8 +38,20 @@ const createChannelHub = async (token, dispatch) => {
   connection.on("DeleteMessage", (message) => {
     dispatch(DELETE_MESSAGE(message));
   });
-  connection.on("UserLeave", (username, channel) => {
-    console.log(`User ${username} has left this ${channel.channelName}!`);
+  connection.on("UserLeave", (lastSeenMessage) => {
+    console.log("UserLeave event received:", lastSeenMessage);
+  });
+
+  connection.on("SetMentionCount", (mentionCounts) => {
+    dispatch(
+      SET_MENTION_COUNT({
+        channelId: mentionCounts.channelId,
+        mentionsCount: mentionCounts.mentionsCount,
+      })
+    );
+  });
+  connection.on("MarkMentionsAsRead", (channelId) => {
+    dispatch(CLEAR_MENTION_COUNT(channelId));
   });
   return connection;
 };

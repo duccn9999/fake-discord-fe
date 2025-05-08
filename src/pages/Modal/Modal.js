@@ -34,10 +34,10 @@ export function Modal({ message, show, onClose, onConfirm  }) {
             {message}
           </h1>
           <div style={{ textAlign: "center", marginTop: "20px" }}>
-            <button className="btn bgDanger" onClick={onConfirm}>
+            <button className="btn bgDanger textFaded" onClick={onConfirm}>
               Yes
             </button>
-            <button className="btn" onClick={onClose} style={{ marginLeft: "10px" }}>
+            <button className="btn bgFaded" onClick={onClose} style={{ marginLeft: "10px" }}>
               No
             </button>
           </div>

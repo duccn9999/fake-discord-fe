@@ -14,7 +14,6 @@ import $ from "jquery";
 import Modal from "../Modal/Modal";
 import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
 export function EditGroupChatForm({
-  isEditGroupChatFormOpen,
   handleToggleBigForms,
   groupChat,
 }) {
@@ -43,20 +42,29 @@ export function EditGroupChatForm({
     }
     setShowModal(false);
   };
-  const updatedGroupChat = {
-    groupChatId: groupChat.groupChatId,
-    name: !name ? groupChat.name : name,
-    coverImage: !coverImage ? groupChat.coverImage : coverImage,
-    userCreated: user.userId,
-  };
   // update group chat
   const updateGroupChat = (e) => {
     e.preventDefault();
+    
+    // Create FormData object for file upload
+    const formData = new FormData();
+    
+    // Add all fields to the FormData
+    formData.append("groupChatId", groupChat.groupChatId);
+    formData.append("name", !name ? groupChat.name : name);
+    formData.append("userModified", user.userId);
+    
+    // Only append coverImage if it exists (it's a File object)
+    if (coverImage) {
+      formData.append("coverImage", coverImage);
+    }
+    // Use FormData in the axios request with proper headers
     axios
-      .put(`${COMMON.API_BASE_URL}GroupChats/Update`, updatedGroupChat, {
+      .put(`${COMMON.API_BASE_URL}GroupChats/Update`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-        },
+          'Content-Type': 'multipart/form-data' // Important for file uploads
+        }
       })
       .then((response) => {
         toast.success("Update success", {
@@ -66,7 +74,7 @@ export function EditGroupChatForm({
         setCurrentGroupChat(response.data);
       })
       .catch((err) => {
-        toast.error(err, {
+        toast.error(err.response?.data?.message || "Update failed", {
           position: "top-right",
           autoClose: 5000,
         });
@@ -226,6 +234,7 @@ function Overview({
   name,
   setName,
 }) {
+  const [imagePreview, setImagePreview] = useState(coverImage);
   useEffect(() => {
     setCoverImage(groupChat.coverImage);
     setName(groupChat.name);
@@ -235,10 +244,11 @@ function Overview({
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setCoverImage(e.target.result);
+      reader.onloadend = () => {
+        setCoverImage(file); // keep the blob for FormData upload
+        setImagePreview(reader.result); // store the data URL for preview
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(file); // convert to base64 for preview
     }
   };
 
@@ -264,7 +274,7 @@ function Overview({
             />
             <img
               alt="img"
-              src={coverImage}
+              src={imagePreview} // Change from coverImage to imagePreview
               style={{ width: "100%", borderRadius: "50%" }}
               id="imagePreview"
               onClick={() => $("#imageInput").click()}
@@ -290,7 +300,6 @@ function Overview({
 function Roles({
   toggle,
   groupChat,
-  user,
   token,
   editRoleOptionToggle,
   setEditRoleOptionToggle,
@@ -519,7 +528,6 @@ function Display({ role, groupChat }) {
   const [color, setColor] = useState("#000000");
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
-  console.log(user);
   // Update form inputs when role changes
   useEffect(() => {
     if (role) {
@@ -623,7 +631,6 @@ function Display({ role, groupChat }) {
 
 function Permissions({ role }) {
   const token = useSelector((state) => state.token.value);
-  const user = useJwtDecode(token);
   const [permissions, setPermissions] = useState([]);
   const [rolePermissions, setRolePermissions] = useState([]);
   const [permission, setPermission] = useState(null);
@@ -729,7 +736,6 @@ function Permissions({ role }) {
 
 function ManageMembers({ role, groupChat }) {
   const token = useSelector((state) => state.token.value);
-  const user = useJwtDecode(token);
   const [userCountByEachRole, setUserCountByEachRole] = useState(null);
   const [usersByEachRole, setUsersByEachRole] = useState([]);
   const [usersNotInRole, setUsersNotInRole] = useState([]);
@@ -900,7 +906,7 @@ function ManageMembers({ role, groupChat }) {
     </>
   );
 }
-function Invite({ groupChat, toggle, user, token }) {
+function Invite({ groupChat, toggle, token }) {
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLink, setInviteLink] = useState("");
 

@@ -124,8 +124,16 @@ input {
 .bgDanger {
   background-color: #d9534f;
 }
+.bgDanger:hover {
+  background-color: #f7f7f7;
+  color: #d9534f;
+}
 .bgPrimary {
   background-color: #0275d8;
+}
+.bgPrimary:hover {
+  background-color: #f7f7f7;
+  color: #0275d8;
 }
 .bgSecondary {
   background-color: #6c757d;
@@ -142,9 +150,17 @@ input {
 .bgInverse {
   background-color: #292b2c;
 }
-.bgFaded {
-  border-color: #292b2c;
+.bgInverse:hover {
   background-color: #f7f7f7;
+  color: #292b2c;
+}
+.bgFaded {
+  color: #292b2c;
+  background-color: #f7f7f7;
+}
+.bgFaded:hover {
+  color: #f7f7f7;
+  background-color: #292b2c;
 }
 .bgBlack1 {
   background-color: #1e1f22;
@@ -292,7 +308,13 @@ button:hover {
 #groupChatProfileOption div:hover {
   background-color: #404249;
 }
-
+#channelProfileOption div {
+  cursor: pointer;
+  padding: 10px;
+}
+#channelProfileOption div:hover {
+  background-color: #404249;
+}
 table {
   border-collapse: collapse;
 }
@@ -303,7 +325,7 @@ table {
 .notificationItem {
   cursor: pointer;
 }
-.notificationDot{
+.notificationDot {
   background-color: red;
   padding: 3px;
   border-radius: 50%;
@@ -317,16 +339,32 @@ table {
   right: -5px;
 }
 
-.friendContainer{
+.friendContainer {
   cursor: pointer;
 }
-.friendContainer:hover{
+.friendContainer:hover {
   background-color: #404249;
 }
 
-.imgUploadBtn{
+.attachmentUploadBtn {
   cursor: pointer;
 }
-.imgUploadBtn:hover{
+.attachmentUploadBtn:hover {
   background-color: #404249;
 }
+.suggestionItem{
+  padding: 8px;
+  border-radius: 5px;
+  background-color: #313338;
+  color: white;
+  margin-bottom: 5px;
+  text-align: left;
+}
+.suggestionItem:hover{
+  background-color: #282829;
+  cursor: pointer;
+}
+.suggestionItem.selected {
+  background-color: #282829;
+}
+

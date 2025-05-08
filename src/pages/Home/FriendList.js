@@ -151,11 +151,14 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
   useEffect(() => {
     const fetchFriends = async () => {
       await axios
-        .get(`${COMMON.API_BASE_URL}UserFriends/GetFriendsByUser/${user.userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
+        .get(
+          `${COMMON.API_BASE_URL}UserFriends/GetFriendsByUser/${user.userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
         .then((response) => {
           setFriends(response.data);
         })
@@ -252,7 +255,7 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
           <form onSubmit={sendFriendRequest}>
             <div className="formGroup dFlex">
               <input
-                isRead="text"
+                type="text"
                 placeholder="Enter username that you want to send friend request"
                 value={receiver}
                 onChange={(e) => setReceiver(e.target.value)}
@@ -263,7 +266,14 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
         </div>
         <div className="friends">
           {friends.map((friend, index) => {
-            return <Friend friend={friend} setSelectedFriend={setSelectedFriend} selectedFriend={selectedFriend}/>;
+            return (
+              <Friend
+                key={index}
+                friend={friend}
+                setSelectedFriend={setSelectedFriend}
+                selectedFriend={selectedFriend}
+              />
+            );
           })}
         </div>
       </div>

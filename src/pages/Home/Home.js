@@ -3,7 +3,6 @@ import { FaPlus } from "react-icons/fa";
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import $ from "jquery";
 import COMMON from "../../utils/Common";
-import MessageSectionNotFound from "../Errors/MessageSectionNotFound";
 import { Channel } from "./Channel";
 import { MessagesContainer } from "./MessagesContainer";
 import axios from "axios";
@@ -24,9 +23,13 @@ import { MdExpandMore } from "react-icons/md";
 import EditGroupChatForm from "../Forms/EditGroupChatForm";
 import { IoHomeSharp } from "react-icons/io5";
 import { HomePageContent } from "./HomePageContent";
-const UserHubContext = createContext();
-const GroupChatHubContext = createContext();
-const ChannelHubContext = createContext();
+import { useAddLastSeenMessage } from "../../hooks/addLastSeenMessage";
+import {
+  UserHubContext,
+  GroupChatHubContext,
+  ChannelHubContext,
+} from "../../utils/Contexts";
+
 function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
@@ -41,7 +44,7 @@ function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
           .invoke("OnEnterGroupChat", user.username, groupChat)
           .catch((err) => console.error("SignalR Error:", err));
       }}
-      data-name={groupChat.name}
+      data-name={`${groupChat.name}`}
     >
       <div className={`${Styles.avatar} dInlineBlock`}>
         <img src={groupChat.coverImage} alt={`img-${groupChat.groupChatId}`} />
@@ -81,7 +84,8 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
       setPreview(undefined);
       return;
     }
-    setPreview(file);
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl); // Set the preview image
     return () => URL.revokeObjectURL(file);
   }, [file]);
   // Handle file input change
@@ -91,7 +95,7 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onloadend = () => {
-        setFile(reader.result); // Base64 string
+        setFile(file); // Set the file for upload
       };
     }
   };
@@ -99,17 +103,12 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
     e.preventDefault();
     try {
       // After the image is uploaded, proceed with creating the group chat
-      const GroupChat = {
-        Name: groupChatName,
-        CoverImage: file,
-        userCreated: user.userId,
-      };
+      const GroupChat = new FormData();
+      GroupChat.append("coverImage", file); // Append the file to the FormData object
+      GroupChat.append("name", groupChatName); // Append the group chat name
+      GroupChat.append("userCreated", user.userId); // Append the user ID
       await axios
-        .post(`${COMMON.API_BASE_URL}GroupChats/Create`, GroupChat, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        })
+        .post(`${COMMON.API_BASE_URL}GroupChats/Create`, GroupChat)
         .then(() => {
           window.location.reload();
         });
@@ -195,26 +194,22 @@ function GroupChatsContainer({ handleGroupChatClick }) {
   }, [token]);
   // Handle display joined groupChat
   const fetchGroupChats = async (userId) => {
-    const response = await axios.get(
-      `${COMMON.API_BASE_URL}GroupChats/GetJoinedGroupChats/${userId}`,
-      {
+    await axios
+      .get(`${COMMON.API_BASE_URL}GroupChats/GetJoinedGroupChats/${userId}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`, // Correctly set Authorization header
         },
-      }
-    );
-    if (response.status === 200) {
-      setGroupChats(response.data);
-    } else if (response.status === 401) {
-      dispatch(clear(token));
-    }
+      })
+      .then((response) => {
+        setGroupChats(response.data);
+      })
+      .catch(() => {
+        dispatch(clear(token));
+      });
   };
   useEffect(() => {
     fetchGroupChats(user.userId);
-    return () => {
-      console.log("Group chat displayed!!!");
-    };
   }, [user.userId]);
   // track current groupChat that user enters
   const groupChatTracking = (value) => {
@@ -227,11 +222,18 @@ function GroupChatsContainer({ handleGroupChatClick }) {
     }
   };
   // disconnect from groupChat
+  // tracking the last seen message
+  const addLastSeenMessage = useAddLastSeenMessage();
   useEffect(() => {
     if (previousGroupChat) {
-      groupChatHub.invoke("OnLeaveGroupChat", user.username, previousGroupChat);
+      groupChatHub
+        .invoke("OnLeaveGroupChat", user.username, previousGroupChat)
+        .then((message) => {
+          addLastSeenMessage(message);
+        })
+        .catch((err) => console.error("SignalR Error:", err));
     }
-  }, [previousGroupChat]);
+  }, [previousGroupChat, user.username, groupChatHub, addLastSeenMessage]);
   if (!groupChats.length) {
     return;
   }
@@ -472,11 +474,17 @@ function GroupChatContent({
     }
   };
   // disconnect from channel
+  const addLastSeenMessage = useAddLastSeenMessage();
   useEffect(() => {
     if (previousChannel) {
-      channelHub.invoke("OnLeave", user.username, previousChannel);
+      channelHub
+        .invoke("OnLeave", user.username, previousChannel)
+        .then((message) => {
+          addLastSeenMessage(message);
+        })
+        .catch((err) => console.error("SignalR Error:", err));
     }
-  }, [previousChannel]);
+  }, [previousChannel, user.username, channelHub, addLastSeenMessage]);
   if (!groupChatId) {
     return;
   }
@@ -489,7 +497,7 @@ function GroupChatContent({
         className="header bgBlack3 posRelative"
         style={{
           overflowY: "auto",
-          width: "10%",
+          width: "15%",
           minWidth: "150px",
           height: "100vh",
         }}
@@ -540,7 +548,6 @@ function GroupChatContent({
           setChannel={setChannel}
         />
       </div>
-      {!isChannelExist ? <MessageSectionNotFound /> : null}
       {isChannelClicked ? (
         <MessagesContainer
           channel={channel}
@@ -600,7 +607,7 @@ function ChannelsContainer({
             channel={channel}
             setChannelClick={setChannelClick}
             channelTracker={channelTracker}
-            channelHub={channelHub}
+            // channelHub={channelHub}
             handleToggleBigForms={handleToggleBigForms}
             setChannel={setChannel}
             groupChatId={groupChatId}
@@ -716,7 +723,7 @@ function CreateChannelForm({
     }
   };
   // get roles from group chat
-  useEffect(() => {
+  const fetchRolesByGroupChat = () => {
     axios
       .get(`${COMMON.API_BASE_URL}Roles/GetRolesByGroupChat/${groupChatId}`, {
         headers: {
@@ -727,11 +734,11 @@ function CreateChannelForm({
         setRolesByGroupChat(response.data);
       })
       .catch((err) => {
-        Error(err);
+        console.error(err);
       });
-  }, [groupChatId, token]);
+  };
   // get members from group chat
-  useEffect(() => {
+  const fetchUsersInGroupChat = () => {
     axios
       .get(`${COMMON.API_BASE_URL}Users/GetUsersInGroupChat/${groupChatId}`, {
         headers: {
@@ -744,7 +751,13 @@ function CreateChannelForm({
       .catch((err) => {
         Error(err);
       });
-  }, [groupChatId, token]);
+  };
+
+  useEffect(() => {
+    if (isCreateChannelFormOpen) {
+      fetchUsersInGroupChat();
+    }
+  }, [isCreateChannelFormOpen]);
   // create private channel
   const createPrivateChannel = async (e) => {
     e.preventDefault();
@@ -753,7 +766,7 @@ function CreateChannelForm({
       channelName: channelName,
       userCreated: user.userId,
       roles: selectedRoles,
-      users: selectedUsers,
+      users: selectedUsers.includes(user.userId) ? selectedUsers : [...selectedUsers, user.userId],
     };
     const response = await axios.post(
       `${COMMON.API_BASE_URL}Channels/CreatePrivateChannel`,
@@ -836,6 +849,8 @@ function CreateChannelForm({
                   onClick={() => {
                     handleNextButtonClick();
                     handlePrivateChannelForm();
+                    fetchUsersInGroupChat();
+                    fetchRolesByGroupChat();
                   }}
                 >
                   Next
@@ -985,6 +1000,22 @@ function Home() {
       }
     };
   }, [token, user?.username, dispatch, setUserHub, userHub]);
+  // Track if user leave the page or not
+  useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+      if (userHub) {
+        userHub.invoke("OnDisconnected", user.username).catch((err) => {
+          console.error("SignalR Error:", err);
+        });
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [userHub, user?.username]);
   // Redirect if token is cleared or expired
   if (!token) {
     if (userHub) {

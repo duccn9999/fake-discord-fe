@@ -7,25 +7,13 @@ const useRolePermissionsOfUserInGroupChat = (groupChatId) => {
   const [permissions, setPermissions] = useState([]);
   var token = useSelector((state) => state.token.value);
   var user = useJwtDecode(token);
-  var roles = user.roles
-    .filter((role) => role.GroupChatId === groupChatId)
-    .map((role) => role.RoleId);
   // get permissions name of each role in each group chat of user
   useEffect(() => {
     if (!token || !groupChatId) return;
-    const roles = user.roles
-      .filter((role) => role.GroupChatId === groupChatId)
-      .map((role) => role.RoleId);
-
-    if (roles.length === 0) {
-      setPermissions([]);
-      return;
-    }
-
     axios
-      .get(`https://localhost:7065/RolePermissions?roleIds=${roles}`)
+      .get(`https://localhost:7065/RolePermissions/${user.userId}/${groupChatId}`)
       .then((response) => {
-        setPermissions([...new Set(response.data)]);
+        setPermissions(response.data);
       })
       .catch((err) => {
         console.error("Failed to fetch role permissions:", err);
