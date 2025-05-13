@@ -1,18 +1,15 @@
 import Styles from "./Home.module.css";
 import { FaPlus } from "react-icons/fa";
-import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState, useRef, useCallback } from "react";
 import $ from "jquery";
 import COMMON from "../../utils/Common";
 import { Channel } from "./Channel";
 import { MessagesContainer } from "./MessagesContainer";
 import axios from "axios";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { FaCog } from "react-icons/fa";
 import { RiLogoutBoxRLine } from "react-icons/ri";
 import { IoIosOptions } from "react-icons/io";
-import createUserHub from "../../signalR/userHub";
-import createGroupChatHub from "../../signalR/groupChatHub";
-import createChannelHub from "../../signalR/channelHub";
 import useJwtDecode from "../../hooks/jwtDecode";
 import { useDispatch, useSelector } from "react-redux";
 import { GET_CHANNELS } from "../../reducers/channelsReducer";
@@ -24,16 +21,35 @@ import EditGroupChatForm from "../Forms/EditGroupChatForm";
 import { IoHomeSharp } from "react-icons/io5";
 import { HomePageContent } from "./HomePageContent";
 import { useAddLastSeenMessage } from "../../hooks/addLastSeenMessage";
-import {
-  UserHubContext,
+import UserHubProvider, { UserHubContext } from "../../Contexts/userHubContext";
+import GroupChatHubProvider, {
   GroupChatHubContext,
+} from "../../Contexts/groupChatHubContext";
+import ChannelHubProvider, {
   ChannelHubContext,
-} from "../../utils/Contexts";
-
+} from "../../Contexts/channelHubContext";
+import GroupChatIdProvider, {
+  GroupChatIdContext,
+} from "../../Contexts/groupChatIdContext";
+import { useFetchRolesByGroupChat } from "../../hooks/fetchRolesByGroupChat";
+import { useFetchUsersInGroupChat } from "../../hooks/fetchUsersInGroupChat";
+import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
+import { GET_PERMISSIONS } from "../../reducers/permissionsReducer";
 function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
+  const dispatch = useDispatch();
   const groupChatHub = useContext(GroupChatHubContext);
+  const permissions = useRolePermissionsOfUserInGroupChat(
+    groupChat.groupChatId
+  );
+
+  useEffect(() => {
+    if (permissions) {
+      dispatch(GET_PERMISSIONS(permissions));
+    }
+  }, [permissions, dispatch]);
+
   return (
     <div
       className={`${Styles.groupChat}`}
@@ -52,32 +68,13 @@ function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
     </div>
   );
 }
-function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
+function CreateGroupChatForm({ handleToggleSmallForms }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [groupChatName, setGroupChatName] = useState(null);
-  const [groupChatHub, setGroupChatHub] = useState(null);
   const token = useSelector((state) => state.token.value);
-  const dispatch = useDispatch();
   let user = useJwtDecode(token);
 
-  useEffect(() => {
-    const createHub = async () => {
-      try {
-        const groupChatHub = await createGroupChatHub(token, dispatch);
-        setGroupChatHub(groupChatHub);
-      } catch (err) {
-        console.error("Error invoking OnConnected:", err);
-      }
-    };
-    createHub();
-    return () => {
-      if (groupChatHub) {
-        groupChatHub.stop();
-        console.log("SignalR connection stopped.");
-      }
-    };
-  }, [token]);
   // Handle preview image
   useEffect(() => {
     if (!file) {
@@ -112,16 +109,23 @@ function CreateGroupChatForm({ isCreateGroupChatFormOpen, onClose }) {
         .then(() => {
           window.location.reload();
         });
-      onClose(true); // Close the modal or perform any other actions
+      handleToggleSmallForms(1);
     } catch (error) {
       console.error("Error uploading image:", error);
       $(".error").html(`Error uploading image: ${error.message}`);
     }
   };
-  if (!isCreateGroupChatFormOpen) return null;
   return (
     <>
-      <div className="overlay" onClick={onClose}>
+      <div
+        className="overlay"
+        onClick={() => {
+          handleToggleSmallForms(1);
+          setPreview(null);
+          setFile(null);
+          setGroupChatName(null);
+        }}
+      >
         <div
           className="formContainer posAbsolute centerWithTransform"
           onClick={(e) => e.stopPropagation()}
@@ -172,26 +176,9 @@ function GroupChatsContainer({ handleGroupChatClick }) {
   const user = useJwtDecode(token);
   const dispatch = useDispatch();
   const [groupChats, setGroupChats] = useState([]);
-  const [groupChatHub, setGroupChatHub] = useState(null);
+  const groupChatHub = useContext(GroupChatHubContext);
   const [currentGroupChat, setCurrentGroupChat] = useState(null);
   const [previousGroupChat, setPreviousGroupChat] = useState(null);
-  useEffect(() => {
-    const createHub = async () => {
-      try {
-        const groupChatHub = await createGroupChatHub(token, dispatch);
-        setGroupChatHub(groupChatHub);
-      } catch (err) {
-        console.error("Error invoking OnConnected:", err);
-      }
-    };
-    createHub();
-    return () => {
-      if (groupChatHub) {
-        groupChatHub.stop();
-        console.log("SignalR connection stopped.");
-      }
-    };
-  }, [token]);
   // Handle display joined groupChat
   const fetchGroupChats = async (userId) => {
     await axios
@@ -238,18 +225,16 @@ function GroupChatsContainer({ handleGroupChatClick }) {
     return;
   }
   return (
-    <GroupChatHubContext.Provider value={groupChatHub}>
-      <div className="groupChatsContainer" id="groupChatsContainer">
-        {groupChats.map((groupChat) => (
-          <GroupChat
-            key={groupChat.groupChatId}
-            groupChat={groupChat}
-            handleGroupChatClick={handleGroupChatClick}
-            groupChatTracking={groupChatTracking}
-          />
-        ))}
-      </div>
-    </GroupChatHubContext.Provider>
+    <div className="groupChatsContainer" id="groupChatsContainer">
+      {groupChats.map((groupChat) => (
+        <GroupChat
+          key={groupChat.groupChatId}
+          groupChat={groupChat}
+          handleGroupChatClick={handleGroupChatClick}
+          groupChatTracking={groupChatTracking}
+        />
+      ))}
+    </div>
   );
 }
 function EditProfileForm({ isEditProfileFormOpen, onClose, user, token }) {
@@ -396,42 +381,24 @@ function EditProfileForm({ isEditProfileFormOpen, onClose, user, token }) {
   );
 }
 function GroupChatContent({
-  groupChatId,
   isGroupChatClicked,
   isChannelClicked,
   isHomeBtnClicked,
-  setCreateChannelFormOpen,
+  handleToggleSmallForms,
   setChannelClick,
   handleToggleBigForms,
   channel,
   setChannel,
   groupChat,
   setGroupChat,
-  setEditGroupChatForm,
 }) {
   const [isChannelExist, setChannelExist] = useState(true);
   const [previousChannel, setPreviousChannel] = useState(null);
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const dispatch = useDispatch();
-  const [channelHub, setChannelHub] = useState(null);
-  useEffect(() => {
-    const createHub = async () => {
-      try {
-        const channelHub = await createChannelHub(token, dispatch);
-        setChannelHub(channelHub);
-      } catch (err) {
-        console.error("Error invoking OnConnected:", err);
-      }
-    };
-    createHub();
-    return () => {
-      if (channelHub) {
-        channelHub.stop();
-        console.log("channelHub stopped");
-      }
-    };
-  }, [token]);
+  const channelHub = useContext(ChannelHubContext);
+  const groupChatId = useContext(GroupChatIdContext).groupChatId;
   useEffect(() => {
     const fetchGroupChat = async () => {
       if (isGroupChatClicked && groupChatId) {
@@ -506,7 +473,7 @@ function GroupChatContent({
           <button
             className="btnSmall w100 bgBlack2 dFlex alignCenter"
             onClick={() => {
-              $("#EditGroupChatbtnSmall").toggle();
+              $("#EditGroupChatBtnSmall").toggle();
             }}
           >
             <h3 className={`textFaded ${Styles.groupChatTitle}`}>
@@ -516,14 +483,13 @@ function GroupChatContent({
           </button>
           <div
             className="dNone posAbsolute w100"
-            id="EditGroupChatbtnSmall"
+            id="EditGroupChatBtnSmall"
             style={{ zIndex: 1 }}
           >
             <button
               className="w100 btnSmall textFaded dFlex alignCenter justifySpaceAround"
               style={{ backgroundColor: "black" }}
               onClick={() => {
-                setEditGroupChatForm(true);
                 handleToggleBigForms(3);
               }}
             >
@@ -534,7 +500,7 @@ function GroupChatContent({
         </div>
         <button
           className="bgBlack3 textFaded borderNone w100"
-          onClick={() => setCreateChannelFormOpen(true)}
+          onClick={() => handleToggleSmallForms(3)}
         >
           Add Channels <FaPlus style={{ width: "10px", height: "10px" }} />
         </button>
@@ -543,27 +509,20 @@ function GroupChatContent({
           setChannelExist={setChannelExist}
           setChannelClick={setChannelClick}
           channelTracker={channelTracker}
-          channelHub={channelHub}
           handleToggleBigForms={handleToggleBigForms}
           setChannel={setChannel}
         />
       </div>
       {isChannelClicked ? (
-        <MessagesContainer
-          channel={channel}
-          channelHub={channelHub}
-          groupChatId={groupChatId}
-        />
+        <MessagesContainer channel={channel} groupChatId={groupChatId} />
       ) : null}
     </div>
   );
 }
 function ChannelsContainer({
-  groupChatId,
   setChannelExist,
   setChannelClick,
   channelTracker,
-  channelHub,
   handleToggleBigForms,
   setChannel,
 }) {
@@ -571,6 +530,7 @@ function ChannelsContainer({
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const dispatch = useDispatch();
+  const groupChatId = useContext(GroupChatIdContext).groupChatId;
   useEffect(() => {
     axios
       .get(
@@ -599,40 +559,29 @@ function ChannelsContainer({
     return null;
   }
   return (
-    <ChannelHubContext.Provider value={channelHub}>
-      <div id="channelsContainer">
-        {channels.map((channel, index) => (
-          <Channel
-            key={index}
-            channel={channel}
-            setChannelClick={setChannelClick}
-            channelTracker={channelTracker}
-            // channelHub={channelHub}
-            handleToggleBigForms={handleToggleBigForms}
-            setChannel={setChannel}
-            groupChatId={groupChatId}
-          />
-        ))}
-      </div>
-    </ChannelHubContext.Provider>
+    <div id="channelsContainer">
+      {channels.map((channel, index) => (
+        <Channel
+          key={index}
+          channel={channel}
+          setChannelClick={setChannelClick}
+          channelTracker={channelTracker}
+          handleToggleBigForms={handleToggleBigForms}
+          setChannel={setChannel}
+        />
+      ))}
+    </div>
   );
 }
-function CreateChannelForm({
-  isCreateChannelFormOpen,
-  onClose,
-  groupChatId,
-  token,
-}) {
+function CreateChannelForm({ handleToggleSmallForms, token }) {
   const [channelName, setChannelName] = useState(null);
   const dispatch = useDispatch();
-  const [groupChatHub, setGroupChatHub] = useState(null);
   const [isPrivate, setIsPrivate] = useState(false);
   const channelNameRef = useRef(null);
-  const [rolesByGroupChat, setRolesByGroupChat] = useState([]);
-  const [usersInGroupChat, setUsersInGroupChat] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
-
+  const groupChatHub = useContext(GroupChatHubContext);
+  const groupChatId = useContext(GroupChatIdContext).groupChatId;
   const handleCheckboxChange = (e) => {
     setIsPrivate(e.target.checked); // `checked` gives true/false
   };
@@ -675,23 +624,6 @@ function CreateChannelForm({
     $("#createChannelForm").removeClass("dNone").addClass("dBlock"); // Show public form
     $("#createPrivateChannelForm").addClass("dNone").removeClass("dBlock"); // Hide private form
   };
-  useEffect(() => {
-    const createHub = async () => {
-      try {
-        const groupChatHub = await createGroupChatHub(token, dispatch);
-        setGroupChatHub(groupChatHub);
-      } catch (err) {
-        console.error("Error invoking OnConnected:", err);
-      }
-    };
-    createHub();
-    return () => {
-      if (groupChatHub) {
-        groupChatHub.stop();
-        console.log("SignalR connection stopped.");
-      }
-    };
-  }, [token]);
   let user = useJwtDecode(token);
   const createChannel = async (e) => {
     e.preventDefault();
@@ -711,7 +643,7 @@ function CreateChannelForm({
       }
     );
     if (response.status === 201) {
-      onClose(true);
+      handleToggleSmallForms(1);
       groupChatHub.invoke("CreateChannel", response.data);
     }
     if (response.status === 401) {
@@ -723,41 +655,12 @@ function CreateChannelForm({
     }
   };
   // get roles from group chat
-  const fetchRolesByGroupChat = () => {
-    axios
-      .get(`${COMMON.API_BASE_URL}Roles/GetRolesByGroupChat/${groupChatId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        setRolesByGroupChat(response.data);
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  };
+  const { rolesByGroupChat, fetchRolesByGroupChat } =
+    useFetchRolesByGroupChat();
   // get members from group chat
-  const fetchUsersInGroupChat = () => {
-    axios
-      .get(`${COMMON.API_BASE_URL}Users/GetUsersInGroupChat/${groupChatId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        setUsersInGroupChat(response.data);
-      })
-      .catch((err) => {
-        Error(err);
-      });
-  };
+  const { usersInGroupChat, fetchUsersInGroupChat } =
+    useFetchUsersInGroupChat();
 
-  useEffect(() => {
-    if (isCreateChannelFormOpen) {
-      fetchUsersInGroupChat();
-    }
-  }, [isCreateChannelFormOpen]);
   // create private channel
   const createPrivateChannel = async (e) => {
     e.preventDefault();
@@ -766,7 +669,9 @@ function CreateChannelForm({
       channelName: channelName,
       userCreated: user.userId,
       roles: selectedRoles,
-      users: selectedUsers.includes(user.userId) ? selectedUsers : [...selectedUsers, user.userId],
+      users: selectedUsers.includes(user.userId)
+        ? selectedUsers
+        : [...selectedUsers, user.userId],
     };
     const response = await axios.post(
       `${COMMON.API_BASE_URL}Channels/CreatePrivateChannel`,
@@ -779,10 +684,21 @@ function CreateChannelForm({
       }
     );
     if (response.status === 201) {
-      onClose(true);
+      handleToggleSmallForms(1);
+      setIsPrivate(false);
+      setChannelName("");
+      channelNameRef.current.value = "";
+      setSelectedRoles([]);
+      setSelectedUsers([]);
       groupChatHub.invoke("CreateChannel", response.data);
     }
     if (response.status === 401) {
+      handleToggleSmallForms(1);
+      setIsPrivate(false);
+      setChannelName("");
+      channelNameRef.current.value = "";
+      setSelectedRoles([]);
+      setSelectedUsers([]);
       toast.error("Failed create channel: " + response.data, {
         position: "top-right",
         autoClose: 5000,
@@ -790,16 +706,17 @@ function CreateChannelForm({
       dispatch(clear(token));
     }
   };
-  if (!isCreateChannelFormOpen) {
-    return null;
-  }
   return (
     <>
       <div
         className="overlay dFlex alignCenter justifyCenter"
         onClick={() => {
-          onClose();
+          handleToggleSmallForms(1);
           setIsPrivate(false);
+          setChannelName("");
+          channelNameRef.current.value = "";
+          setSelectedRoles([]);
+          setSelectedUsers([]);
         }}
       >
         <div
@@ -849,8 +766,8 @@ function CreateChannelForm({
                   onClick={() => {
                     handleNextButtonClick();
                     handlePrivateChannelForm();
-                    fetchUsersInGroupChat();
-                    fetchRolesByGroupChat();
+                    fetchUsersInGroupChat(groupChatId);
+                    fetchRolesByGroupChat(groupChatId);
                   }}
                 >
                   Next
@@ -939,67 +856,38 @@ function CreateChannelForm({
   );
 }
 function Home() {
-  const [isCreateGroupChatFormOpen, SetCreateGroupChatFormOpen] =
-    useState(false);
-  const [isCreateChannelFormOpen, SetCreateChannelFormOpen] = useState(false);
   const [isEditProfileFormOpen, setEditProfileForm] = useState(false);
-  const [isEditGroupChatFormOpen, setEditGroupChatForm] = useState(false);
+
+  
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [isChannelClicked, setChannelClick] = useState(false);
   const [isHomeBtnClicked, setHomeBtnClick] = useState(false);
-  const [groupChatId, setGroupChatId] = useState(null);
+
   const [channel, setChannel] = useState(null);
   const [groupChat, setGroupChat] = useState(null);
+
   const [toggleBigForms, setToggleBigForms] = useState(1);
+  const [toggleSmallForms, setToggleSmallForms] = useState(1);
   const dispatch = useDispatch();
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
-  const [userHub, setUserHub] = useState(null);
-  const hubInitialized = useRef(false);
-  const handleGroupChatClick = (id) => {
+  const userHub = useContext(UserHubContext);
+  const setGroupChatId = useContext(GroupChatIdContext).setGroupChatId;
+
+  const handleGroupChatClick =((groupChatId) => {
     setGroupChatClick(true);
     setChannelClick(false);
-    setGroupChatId(id);
+    setGroupChatId(groupChatId);
     setHomeBtnClick(false);
-  };
+  });
+
   const handleToggleBigForms = (value) => {
     setToggleBigForms(value);
   };
-  useEffect(() => {
-    let hubConnection = null;
-    const createHub = async () => {
-      try {
-        // Only create the hub if we have a token and haven't initialized it yet
-        if (token && !hubInitialized.current) {
-          // Prevent additional initialization attempts
-          hubInitialized.current = true;
-          console.log("Creating hub connection...");
-          const hub = await createUserHub(token, dispatch);
+  const handleToggleSmallForms = (value) => {
+    setToggleSmallForms(value);
+  };
 
-          if (hub) {
-            console.log("Hub created, invoking OnConnected...");
-            await hub.invoke("OnConnected", user.username);
-            setUserHub(hub);
-            hubConnection = hub;
-          }
-        }
-      } catch (err) {
-        // Reset initialization flag on error to allow retrying
-        hubInitialized.current = false;
-        console.error("Error invoking OnConnected:", err);
-      }
-    };
-    if (token && !userHub) {
-      createHub();
-    }
-    // Cleanup function
-    return () => {
-      if (hubConnection) {
-        hubConnection.stop();
-        console.log("SignalR connection stopped.");
-      }
-    };
-  }, [token, user?.username, dispatch, setUserHub, userHub]);
   // Track if user leave the page or not
   useEffect(() => {
     const handleBeforeUnload = (event) => {
@@ -1023,154 +911,161 @@ function Home() {
     }
     return <Navigate to={"/"} />;
   }
-
+  let content;
   switch (toggleBigForms) {
     case 1:
-      return (
-        <UserHubContext.Provider value={userHub}>
-          <div className="dFlex" style={{ height: "100vh" }}>
-            <div
-              className={"bgBlack1 leftSided dFlex alignCenter"}
-              style={{
-                overflowY: "auto",
-                minWidth: "70px",
-                flexDirection: "column",
-                height: "100vh",
-                gap: "8px",
-              }}
-            >
-              <div>
-                <button
-                  className="btn bgBlack3 textFaded"
-                  onClick={() => {
-                    setHomeBtnClick(true);
-                    setGroupChatClick(false);
-                  }}
-                >
-                  <IoHomeSharp />
-                </button>
-              </div>
-              <GroupChatsContainer
-                handleGroupChatClick={handleGroupChatClick}
-              />
-              <button
-                className="btnSmall btnSmallRounded bgSuccess"
-                onClick={() =>
-                  SetCreateGroupChatFormOpen(!isCreateGroupChatFormOpen)
-                }
-              >
-                <FaPlus />
-              </button>
-              <div style={{ marginTop: "auto" }}>
-                <div
-                  id="optbtnSmalls"
-                  className="posAbsolute"
-                  style={{
-                    display: "none",
-                    bottom: "39.5px",
-                    width: "68px",
-                  }}
-                >
-                  <button
-                    className="dBlock btnSmall bgInverse textFaded w100"
-                    onClick={() => {
-                      dispatch(clear(token));
+      content = (
+        <UserHubProvider>
+          <GroupChatHubProvider>
+            <ChannelHubProvider>
+              {toggleSmallForms === 1 && (
+                <div className="dFlex" style={{ height: "100vh" }}>
+                  <div
+                    className={"bgBlack1 leftSided dFlex alignCenter"}
+                    style={{
+                      overflowY: "auto",
+                      minWidth: "70px",
+                      flexDirection: "column",
+                      height: "100vh",
+                      gap: "8px",
                     }}
                   >
-                    <span className="dFlex alignCenter justifyEvenly">
-                      Log out <RiLogoutBoxRLine />
-                    </span>
-                  </button>
-                  <button
-                    className="dBlock btnSmall bgSecondary textInverse w100"
-                    onClick={() => setEditProfileForm(true)}
+                    <div>
+                      <button
+                        className="btn bgBlack3 textFaded"
+                        onClick={() => {
+                          setHomeBtnClick(true);
+                          setGroupChatClick(false);
+                        }}
+                      >
+                        <IoHomeSharp />
+                      </button>
+                    </div>
+                    <GroupChatsContainer
+                      handleGroupChatClick={handleGroupChatClick}
+                    />
+                    <button
+                      className="btnSmall btnSmallRounded bgSuccess"
+                      onClick={() => handleToggleSmallForms(2)}
+                    >
+                      <FaPlus />
+                    </button>
+                    <div style={{ marginTop: "auto" }}>
+                      <div
+                        id="optBtnSmalls"
+                        className="posAbsolute"
+                        style={{
+                          display: "none",
+                          bottom: "39.5px",
+                          width: "68px",
+                        }}
+                      >
+                        <button
+                          className="dBlock btnSmall bgInverse textFaded w100"
+                          onClick={() => {
+                            dispatch(clear(token));
+                          }}
+                        >
+                          <span className="dFlex alignCenter justifyEvenly">
+                            Log out <RiLogoutBoxRLine />
+                          </span>
+                        </button>
+                        <button
+                          className="dBlock btnSmall bgSecondary textInverse w100"
+                          onClick={() => setEditProfileForm(true)}
+                        >
+                          <span className="dFlex alignCenter justifyEvenly">
+                            Edit profile <FaCog />
+                          </span>
+                        </button>
+                      </div>
+                      <div>
+                        <button
+                          className="btnSmall bgFaded textInverse w100"
+                          onClick={() => {
+                            $("#optBtnSmalls").toggle();
+                          }}
+                        >
+                          <span className="dFlex alignCenter justifyEvenly">
+                            <img
+                              alt="img"
+                              src={user.avatar}
+                              className="avatarCircle"
+                              style={{ "--avatar-size": "25px" }}
+                            />
+                            <IoIosOptions />
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    className={"bgBlack2 rightSided"}
+                    style={{ overflowY: "overlay" }}
                   >
-                    <span className="dFlex alignCenter justifyEvenly">
-                      Edit profile <FaCog />
-                    </span>
-                  </button>
-                </div>
-                <div>
-                  <button
-                    className="btnSmall bgFaded textInverse w100"
-                    onClick={() => {
-                      $("#optbtnSmalls").toggle();
-                    }}
-                  >
-                    <span className="dFlex alignCenter justifyEvenly">
-                      <img
-                        alt="img"
-                        src={user.avatar}
-                        className="avatarCircle"
-                        style={{ "--avatar-size": "25px" }}
+                    {/* chat content here */}
+                    {isGroupChatClicked ? (
+                      <GroupChatContent
+                        isGroupChatClicked={isGroupChatClicked}
+                        isHomeBtnClicked={isHomeBtnClicked}
+                        isChannelClicked={isChannelClicked}
+                        handleToggleSmallForms={handleToggleSmallForms}
+                        setGroupChatClick={setGroupChatClick}
+                        setChannelClick={setChannelClick}
+                        handleToggleBigForms={handleToggleBigForms}
+                        channel={channel}
+                        setChannel={setChannel}
+                        groupChat={groupChat}
+                        setGroupChat={setGroupChat}
                       />
-                      <IoIosOptions />
-                    </span>
-                  </button>
+                    ) : (
+                      <HomePageContent />
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div
-              className={"bgBlack2 rightSided"}
-              style={{ overflowY: "overlay" }}
-            >
-              {/* chat content here */}
-              {isGroupChatClicked ? (
-                <GroupChatContent
-                  groupChatId={groupChatId}
-                  isGroupChatClicked={isGroupChatClicked}
-                  isHomeBtnClicked={isHomeBtnClicked}
-                  isChannelClicked={isChannelClicked}
-                  setCreateChannelFormOpen={SetCreateChannelFormOpen}
-                  setGroupChatClick={setGroupChatClick}
-                  setChannelClick={setChannelClick}
-                  handleToggleBigForms={handleToggleBigForms}
-                  channel={channel}
-                  setChannel={setChannel}
-                  groupChat={groupChat}
-                  setGroupChat={setGroupChat}
-                  setEditGroupChatForm={setEditGroupChatForm}
-                />
-              ) : (
-                <HomePageContent userHub={userHub} />
               )}
-            </div>
-          </div>
-          <CreateGroupChatForm
-            isCreateGroupChatFormOpen={isCreateGroupChatFormOpen}
-            onClose={() => SetCreateGroupChatFormOpen(false)}
-          />
-          <CreateChannelForm
-            isCreateChannelFormOpen={isCreateChannelFormOpen}
-            onClose={() => SetCreateChannelFormOpen(false)}
-            groupChatId={groupChatId}
-            token={token}
-          />
+              {toggleSmallForms === 2 && (
+                <CreateGroupChatForm
+                  handleToggleSmallForms={handleToggleSmallForms}
+                />
+              )}
+              {toggleSmallForms === 3 && (
+                <CreateChannelForm
+                  handleToggleSmallForms={handleToggleSmallForms}
+                  token={token}
+                />
+              )}
+            </ChannelHubProvider>
+          </GroupChatHubProvider>
+
           <EditProfileForm
             isEditProfileFormOpen={isEditProfileFormOpen}
             onClose={() => setEditProfileForm(false)}
             user={user}
             token={token}
           />
-        </UserHubContext.Provider>
+        </UserHubProvider>
       );
+      break;
     case 2:
-      return (
+      content = (
         <EditChannelForm
           handleToggleBigForms={handleToggleBigForms}
           channel={channel}
         />
       );
+      break;
     case 3:
-      return (
+      content = (
         <EditGroupChatForm
           handleToggleBigForms={handleToggleBigForms}
           groupChat={groupChat}
         />
       );
-    default:
       break;
+    default:
+      content = null;
   }
+  return content;
 }
-
 export default Home;

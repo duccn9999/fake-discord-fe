@@ -6,6 +6,9 @@ import axios from "axios";
 import { useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
 import useJwtDecode from "../../hooks/jwtDecode";
+import { useFetchRolesByGroupChat } from "../../hooks/fetchRolesByGroupChat";
+import { useFetchUsersInGroupChat } from "../../hooks/fetchUsersInGroupChat";
+import $ from "jquery";
 export function EditChannelForm({ handleToggleBigForms, channel }) {
   const [toggle, setToggle] = useState(1);
   const [channelName, setChannelName] = useState(null);
@@ -18,7 +21,7 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
   const updatedChannel = {
     ChannelId: channel.channelId,
     ChannelName: channelName ? channelName : channel.channelName,
-    UserModified: user.id,
+    UserModified: user.userId,
   };
   // update channel
   const updateChannel = (e) => {
@@ -65,6 +68,12 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
         });
       });
   };
+  // get roles from group chat
+  const { rolesByGroupChat, fetchRolesByGroupChat } =
+    useFetchRolesByGroupChat();
+  // get members from group chat
+  const { usersInGroupChat, fetchUsersInGroupChat } =
+    useFetchUsersInGroupChat();
   return (
     <div style={{ height: "100vh" }} className="bgBlack4 textFaded">
       <div className="dFlex justifySpaceBetween" style={{ height: "100%" }}>
@@ -73,20 +82,22 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
             <h4>{currentChannel.channelName} Text channel</h4>
             <div
               className="bgBlack3 textFaded"
+              id="overviewBtn"
               onClick={() => updateToggle(1)}
             >
               Overview
             </div>
             <div
               className="bgBlack3 textFaded"
-              onClick={() => updateToggle(2)}
+              onClick={() => {
+                updateToggle(2);
+                fetchRolesByGroupChat(currentChannel.groupChatId);
+                fetchUsersInGroupChat(currentChannel.groupChatId);
+              }}
             >
               Permissions
             </div>
-            <div
-              className="bgBlack3 textFaded"
-              onClick={() => updateToggle(3)}
-            >
+            <div className="bgBlack3 textFaded" onClick={() => updateToggle(3)}>
               Invites
             </div>
             <div
@@ -113,7 +124,13 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
             channelName={channelName}
             updateChannel={updateChannel}
           />
-          <Permissions channel={currentChannel} toggle={toggle} />
+          <Permissions
+            channel={currentChannel}
+            toggle={toggle}
+            rolesByGroupChat={rolesByGroupChat}
+            usersInGroupChat={usersInGroupChat}
+            updateToggle={updateToggle}
+          />
           <Invite channel={currentChannel} toggle={toggle} />
         </div>
         <div>
@@ -157,10 +174,166 @@ function Overview({
     </div>
   );
 }
-function Permissions({ channel, toggle }) {
+function Permissions({
+  rolesByGroupChat,
+  usersInGroupChat,
+  channel,
+  toggle,
+  updateToggle,
+}) {
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedRoles, setSelectedRoles] = useState([]);
+  const token = useSelector((state) => state.token.value);
+  const user = useJwtDecode(token);
+  // get allowed users of channel
+  useEffect(
+    () => async () => {
+      await axios
+        .get(
+          `${COMMON.API_BASE_URL}Channels/GetAllowedUsersByChannelId/${channel.groupChatId}/${channel.channelId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+        .then((response) => {
+          setSelectedUsers(response.data);
+        });
+    },
+    [token, channel.channelId, channel.groupChatId]
+  );
+  // get allowed roles of channel
+  useEffect(
+    () => async () => {
+      await axios
+        .get(
+          `${COMMON.API_BASE_URL}Channels/GetAllowedRolesByChannelId/${channel.groupChatId}/${channel.channelId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+        .then((response) => {
+          setSelectedRoles(response.data);
+        });
+    },
+    [token, channel.channelId, channel.groupChatId]
+  );
+  const handleUsersCheckboxChange = (userId) => {
+    setSelectedUsers((prev) => {
+      if (prev.includes(userId)) {
+        return prev.filter((id) => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
+  const handleRolesCheckboxChange = (roleId) => {
+    setSelectedRoles((prev) => {
+      if (prev.includes(roleId)) {
+        return prev.filter((id) => id !== roleId);
+      } else {
+        return [...prev, roleId];
+      }
+    });
+  };
+  const updatePrivateChannelPermissions = (e) => {
+    e.preventDefault();
+    const data = {
+      AllowedRoles: selectedRoles,
+      AllowedUsers: selectedUsers,
+    };
+    axios
+      .put(
+        `${COMMON.API_BASE_URL}Channels/UpdatePrivateChannelPermissions/${channel.channelId}`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        toast.success(`${response.data.message}`, {
+          position: "top-right",
+          autoClose: 5000,
+        });
+        updateToggle(1);
+      })
+      .catch((err) => {
+        toast.error(err, {
+          position: "top-right",
+          autoClose: 5000,
+        });
+      });
+  };
   return (
     <div className={`${toggle === 2 ? "dBlock" : "dNone"}`}>
-      <h4>Permissions</h4>
+      <h4>PERMISSIONS</h4>
+      <form onSubmit={updatePrivateChannelPermissions}>
+        <div style={{ textAlign: "left" }}>
+          <label>
+            <strong>Roles</strong>
+          </label>
+          {rolesByGroupChat.map((role, index) => (
+            <div key={index} className="dFlex alignCenter justifySpaceBetween">
+              <p style={{ color: role.color, fontWeight: "bold" }}>
+                {role.roleName}
+              </p>
+              <div>
+                <input
+                  type="checkbox"
+                  checked={selectedRoles.includes(role.roleId)}
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    cursor: "pointer",
+                    accentColor: "#5cb85c",
+                  }}
+                  onChange={() => handleRolesCheckboxChange(role.roleId)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="inputGroup">
+          <label>
+            <strong>Members</strong>
+          </label>
+          {usersInGroupChat.map((user, index) => (
+            <div key={index} className="dFlex alignCenter justifySpaceBetween">
+              <p style={{ fontWeight: "bold" }}>{user.userName}</p>
+              <div>
+                <input
+                  type="checkbox"
+                  checked={selectedUsers.includes(user.userId)}
+                  style={{
+                    width: "20px",
+                    height: "20px",
+                    cursor: "pointer",
+                    accentColor: "#5cb85c",
+                  }}
+                  onChange={() => handleUsersCheckboxChange(user.userId)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="inputGroup dFlex alignCenter justifySpaceBetween">
+          <button
+            type="button"
+            className="btn bgSecondary textFaded"
+            onClick={() => updateToggle(1)}
+          >
+            Back
+          </button>
+          <button type="submit" className="btn bgSuccess textFaded">
+            Submit
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

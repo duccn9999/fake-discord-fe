@@ -1,10 +1,7 @@
-import { useSelector, useDispatch } from "react-redux";
-import useJwtDecode from "../../hooks/jwtDecode";
 import FriendList from "./FriendList";
 import PrivateMessageContainer from "./PrivateMessageContainer";
 import { useState } from "react";
 export function HomePageContent({ userHub }) {
-  const token = useSelector((state) => state.token.value);
   const [selectedFriend, setSelectedFriend] = useState(null);
   return (
     <>

@@ -1,33 +1,35 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import Styles from "./Home.module.css";
 import useJwtDecode from "../../hooks/jwtDecode";
 import { FaCog } from "react-icons/fa";
 import { CiHashtag } from "react-icons/ci";
-import { useContext, useEffect, useState } from "react";
-import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
+import { useContext, useEffect } from "react";
 import COMMON from "../../utils/Common";
 import axios from "axios";
-import { ChannelHubContext } from "../../utils/Contexts";
+import  {ChannelHubContext} from "../../Contexts/channelHubContext";
+import { GroupChatIdContext } from "../../Contexts/groupChatIdContext";
 export function Channel({
   channel,
   setChannelClick,
   channelTracker,
-  // channelHub,
   handleToggleBigForms,
   setChannel,
-  groupChatId,
 }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
-  const permissions = useRolePermissionsOfUserInGroupChat(groupChatId);
+  const permissions = useSelector(state => state.permissions.value);
   const mentions = useSelector(
     (state) => state.mentions.value[channel.channelId]
   );
   const channelHub = useContext(ChannelHubContext);
+  const groupChatId = useContext(GroupChatIdContext).groupChatId;
   const handleClick = () => {
     channelTracker(channel);
     setChannelClick(true);
-    channelHub.invoke("OnConnected", user.username, channel);
+    channelHub.invoke("EnterChannel", user.username, {
+      ...channel,
+      groupChatId,
+    });
   };
   useEffect(() => {
     axios

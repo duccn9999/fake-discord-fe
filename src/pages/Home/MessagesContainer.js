@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
 import { clear } from "../../reducers/tokenReducer";
@@ -12,7 +12,9 @@ import useGetUsersInGroupChatWithRoles from "../../hooks/getUsersInGroupChatWith
 import { useMentionHandler } from "../../hooks/userMentionHandler";
 import { useUpdateLastSeenMessage } from "../../hooks/updateLastSeenMessage";
 import { useMarkMentionsAsRead } from "../../hooks/markMessageAsRead";
-export function MessagesContainer({ channel, channelHub, groupChatId }) {
+import { ChannelHubContext } from "../../Contexts/channelHubContext";
+import useInfiniteScroll from "../../hooks/infiniteScroll";
+export function MessagesContainer({ channel, groupChatId }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const messages = useSelector((state) => state.messages.value);
@@ -25,6 +27,7 @@ export function MessagesContainer({ channel, channelHub, groupChatId }) {
   const updateLastSeenMessage = useUpdateLastSeenMessage();
   const markMentionsAsRead = useMarkMentionsAsRead();
   const messagesRef = useRef(null);
+  const channelHub = useContext(ChannelHubContext);
   // get last seen message
   useEffect(() => {
     axios
@@ -122,11 +125,12 @@ export function MessagesContainer({ channel, channelHub, groupChatId }) {
     scrollToLastRead();
 
     const handleScroll = async () => {
-      // if(lastMessage === null) return;
+      if (lastMessage === null) return;
       const isAtBottom =
         chatContainer.scrollHeight - chatContainer.scrollTop <=
         chatContainer.clientHeight + 5;
-      if (isAtBottom && messages.length > 0) {
+        console.log("isAtBottom: ", isAtBottom);
+      if (isAtBottom && messages.length >= 0) {
         const newestId = messages[messages.length - 1].messageId;
         if (!lastMessage || newestId !== lastMessage.messageId) {
           // update the last seen message
@@ -168,6 +172,7 @@ export function MessagesContainer({ channel, channelHub, groupChatId }) {
     if (lastMessage && messagesRef.current) {
       const el = document.getElementById(`message${lastMessage.messageId}`);
       if (el) {
+        console.log("LETS GO ", el);
         el.scrollIntoView({ block: "start" });
       }
     } else {
@@ -189,6 +194,9 @@ export function MessagesContainer({ channel, channelHub, groupChatId }) {
         dispatch(GET_MESSAGES(response.data));
       });
   }, [token, channel.channelId, dispatch]);
+  // use infinite scroll hook here
+  // const { items } = useInfiniteScroll(messages, false);
+
   // Add message
   const sendMessage = async () => {
     const messageForm = new FormData();
@@ -218,6 +226,7 @@ export function MessagesContainer({ channel, channelHub, groupChatId }) {
         setPreviewAttachments([]);
         setAttachmentFiles([]);
         channelHub.invoke("SendMessage", response.data);
+        channelHub.invoke("AddMentionCount", mentionUsers, channel.channelId);
       })
       .catch((err) => {
         console.log("Error: ", err);
@@ -253,10 +262,11 @@ export function MessagesContainer({ channel, channelHub, groupChatId }) {
         {messages?.slice().map((message, index) => (
           <Message
             key={index}
-            message={message}
-            channelHub={channelHub}
+            messageValue={message}
             groupChatId={groupChatId}
             suggestions={combinedSuggestions}
+            roles={roles}
+            usersInGroupChat={usersInGroupChat}
           />
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { IoIosClose } from "react-icons/io";
 import { toast } from "react-toastify";
 import { MdOutlineDelete } from "react-icons/md";
@@ -12,7 +12,6 @@ import { MdDeleteOutline } from "react-icons/md";
 import { FaArrowLeft } from "react-icons/fa";
 import $ from "jquery";
 import Modal from "../Modal/Modal";
-import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
 export function EditGroupChatForm({
   handleToggleBigForms,
   groupChat,
@@ -26,9 +25,7 @@ export function EditGroupChatForm({
   const user = useJwtDecode(token);
   const [showModal, setShowModal] = useState(false);
   const [deleteAction, setDeleteAction] = useState(null);
-  const permissions = useRolePermissionsOfUserInGroupChat(
-    groupChat.groupChatId
-  );
+  const permissions = useSelector(state => state.permissions.value);
   const updateToggle = (value) => {
     setToggle(value);
   };

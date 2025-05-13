@@ -5,7 +5,8 @@ import messagesReducer from "../reducers/messagesReducer";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import notificationsReducer from "../reducers/notificationsReducer";
-import mentionsCountReducer from "../reducers/mentionsReducer"
+import mentionsCountReducer from "../reducers/mentionsReducer";
+import permissionsReducer from "../reducers/permissionsReducer";
 const persistConfig = {
   key: "token",
   storage,
@@ -18,7 +19,8 @@ export const store = configureStore({
     channels: channelsReducer,
     messages: messagesReducer,
     notifications: notificationsReducer,
-    mentions: mentionsCountReducer
+    mentions: mentionsCountReducer,
+    permissions: permissionsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

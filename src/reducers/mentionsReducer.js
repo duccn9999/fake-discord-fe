@@ -14,8 +14,13 @@ export const mentionsCountSlice = createSlice({
       const channelId = action.payload;
       delete state.value[channelId];
     },
+    ADD_MENTION_COUNT: (state, action) => {
+      const channelId = action.payload;
+      state.value[channelId] = state.value[channelId] +1 || 1;
+    },
   },
 });
 
-export const { SET_MENTION_COUNT, CLEAR_MENTION_COUNT } = mentionsCountSlice.actions;
+export const { SET_MENTION_COUNT, CLEAR_MENTION_COUNT, ADD_MENTION_COUNT } =
+  mentionsCountSlice.actions;
 export default mentionsCountSlice.reducer;

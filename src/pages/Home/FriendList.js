@@ -131,7 +131,7 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
   // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
-      const response = await axios
+      await axios
         .get(
           `${COMMON.API_BASE_URL}Notifications/GetNotifications/${user.userId}`,
           {
@@ -140,10 +140,12 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
             },
           }
         )
+        .then((response) => {
+          dispatch(GET_NOTIFICATIONS(response.data));
+        })
         .catch((error) => {
           console.error("Error fetching notifications:", error);
         });
-      dispatch(GET_NOTIFICATIONS(response.data));
     };
     fetchNotifications();
   }, [user.userId, token, dispatch]);

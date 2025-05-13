@@ -43,10 +43,6 @@ const PrivateMessageContainer = ({ friend, userHub }) => {
   };
 
   // get messages
-  const customParams = {
-    sender: friend.userId1,
-    receiver: friend.userId2,
-  };
   useEffect(() => {
     axios
       .get(
