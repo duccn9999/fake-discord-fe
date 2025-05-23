@@ -32,9 +32,10 @@ import GroupChatIdProvider, {
   GroupChatIdContext,
 } from "../../Contexts/groupChatIdContext";
 import { useFetchRolesByGroupChat } from "../../hooks/fetchRolesByGroupChat";
-import { useFetchUsersInGroupChat } from "../../hooks/fetchUsersInGroupChat";
+import  useFetchUsersInGroupChat from "../../hooks/fetchUsersInGroupChat";
 import useRolePermissionsOfUserInGroupChat from "../../hooks/rolePermissionsOfUserInGroupChat";
 import { GET_PERMISSIONS } from "../../reducers/permissionsReducer";
+import { ProfileSettingForm } from "../Forms/ProfileSettingForm";
 function GroupChat({ groupChat, handleGroupChatClick, groupChatTracking }) {
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
@@ -237,149 +238,7 @@ function GroupChatsContainer({ handleGroupChatClick }) {
     </div>
   );
 }
-function EditProfileForm({ isEditProfileFormOpen, onClose, user, token }) {
-  const [username, setUsername] = useState(null);
-  const [email, setEmail] = useState(null);
-  const [password, setPassword] = useState(null);
-  const [avatar, setAvatar] = useState(null);
-  const [changePassword, setChangePassword] = useState(false);
-  const dispatch = useDispatch();
-  useEffect(() => {
-    if (changePassword) {
-      $(".changePasswordWrapper").css("display", "block");
-      $(".inputGroup:has(#password)").css("display", "none");
-      $("#changePwdbtnSmall").text("Undo");
-    } else {
-      $(".changePasswordWrapper").css("display", "none");
-      $(".inputGroup:has(#password)").css("display", "block");
-      $("#changePwdbtnSmall").text("Change password");
-    }
-  }, [changePassword]);
-  const updateUser = {
-    UserId: user.userId,
-    Username: username ? username : user.username,
-    Password: password ? password : user.password,
-    Avatar: avatar ? avatar : user.avatar,
-    Email: email ? email : user.email,
-  };
-  const updateProfile = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await axios.put(
-        `${COMMON.API_BASE_URL}Users/UpdateProfile/${user.userId}`,
-        updateUser, // This is the request body
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.status === 204) {
-        toast.success("Update profile success", {
-          position: "top-right",
-          autoClose: 5000,
-        });
-        onClose(true);
-        dispatch(clear(token));
-      }
-    } catch (err) {
-      toast.error("Failed to update profile: " + err.message, {
-        position: "top-right",
-        autoClose: 5000,
-      });
-    }
-  };
-  if (!isEditProfileFormOpen) {
-    return null;
-  }
-  return (
-    <>
-      <div className="overlay" onClick={onClose}>
-        <div
-          className="formContainer posAbsolute centerWithTransform"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <form onSubmit={updateProfile} className="form">
-            <h2>Edit Profile</h2>
-            <p className="error textDanger"></p>
-            <div className="inputGroup">
-              <input
-                type="image"
-                alt="img"
-                id="avatar"
-                onChange={(e) => setAvatar(e.target.value)}
-                className="avatarCircle"
-              />
-            </div>
-            <div className="inputGroup">
-              <label htmlFor="username">Username</label>
-              <input
-                type="text"
-                id="username"
-                onChange={(e) => setUsername(e.target.value)}
-                value={username ? username : user.username}
-              />
-            </div>
-            <div className="inputGroup">
-              <label htmlFor="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                onChange={(e) => setEmail(e.target.value)}
-                value={email ? email : user.email}
-              />
-            </div>
-            <div className="inputGroup">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                value={user.password}
-                disabled={true}
-              />
-            </div>
-            <div className="changePasswordWrapper" style={{ display: "none" }}>
-              <div className="inputGroup">
-                <label htmlFor="newPassword">New password</label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <div className="inputGroup">
-                <label htmlFor="reEnterNewPassword">
-                  Enter new password again
-                </label>
-                <input
-                  type="password"
-                  id="reEnterNewPassword"
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="inputGroup">
-              <button
-                className="btnSmall bgSuccess"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setChangePassword(!changePassword);
-                }}
-                id="changePwdbtnSmall"
-              >
-                Change Password
-              </button>
-              <button type="submit" className="btnSmall bgDanger">
-                Submit
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
-  );
-}
+
 function GroupChatContent({
   isGroupChatClicked,
   isChannelClicked,
@@ -422,7 +281,7 @@ function GroupChatContent({
           console.error("Error fetching group chat:", error.message);
           toast.error("Failed to enter group chat: " + error.message, {
             position: "top-right",
-            autoClose: 5000,
+            autoClose: 3000,
           });
           dispatch(clear(token));
         }
@@ -649,7 +508,7 @@ function CreateChannelForm({ handleToggleSmallForms, token }) {
     if (response.status === 401) {
       toast.error("Failed create channel: " + response.data, {
         position: "top-right",
-        autoClose: 5000,
+        autoClose: 3000,
       });
       dispatch(clear(token));
     }
@@ -701,7 +560,7 @@ function CreateChannelForm({ handleToggleSmallForms, token }) {
       setSelectedUsers([]);
       toast.error("Failed create channel: " + response.data, {
         position: "top-right",
-        autoClose: 5000,
+        autoClose: 3000,
       });
       dispatch(clear(token));
     }
@@ -856,9 +715,6 @@ function CreateChannelForm({ handleToggleSmallForms, token }) {
   );
 }
 function Home() {
-  const [isEditProfileFormOpen, setEditProfileForm] = useState(false);
-
-  
   const [isGroupChatClicked, setGroupChatClick] = useState(false);
   const [isChannelClicked, setChannelClick] = useState(false);
   const [isHomeBtnClicked, setHomeBtnClick] = useState(false);
@@ -868,18 +724,19 @@ function Home() {
 
   const [toggleBigForms, setToggleBigForms] = useState(1);
   const [toggleSmallForms, setToggleSmallForms] = useState(1);
+
   const dispatch = useDispatch();
   const token = useSelector((state) => state.token.value);
   const user = useJwtDecode(token);
   const userHub = useContext(UserHubContext);
   const setGroupChatId = useContext(GroupChatIdContext).setGroupChatId;
 
-  const handleGroupChatClick =((groupChatId) => {
+  const handleGroupChatClick = (groupChatId) => {
     setGroupChatClick(true);
     setChannelClick(false);
     setGroupChatId(groupChatId);
     setHomeBtnClick(false);
-  });
+  };
 
   const handleToggleBigForms = (value) => {
     setToggleBigForms(value);
@@ -906,9 +763,6 @@ function Home() {
   }, [userHub, user?.username]);
   // Redirect if token is cleared or expired
   if (!token) {
-    if (userHub) {
-      userHub.stop(); // Stop SignalR connection if token is cleared
-    }
     return <Navigate to={"/"} />;
   }
   let content;
@@ -972,10 +826,10 @@ function Home() {
                         </button>
                         <button
                           className="dBlock btnSmall bgSecondary textInverse w100"
-                          onClick={() => setEditProfileForm(true)}
+                          onClick={() => handleToggleBigForms(4)}
                         >
                           <span className="dFlex alignCenter justifyEvenly">
-                            Edit profile <FaCog />
+                            Profile Setting <FaCog />
                           </span>
                         </button>
                       </div>
@@ -1037,13 +891,6 @@ function Home() {
               )}
             </ChannelHubProvider>
           </GroupChatHubProvider>
-
-          <EditProfileForm
-            isEditProfileFormOpen={isEditProfileFormOpen}
-            onClose={() => setEditProfileForm(false)}
-            user={user}
-            token={token}
-          />
         </UserHubProvider>
       );
       break;
@@ -1062,6 +909,9 @@ function Home() {
           groupChat={groupChat}
         />
       );
+      break;
+    case 4:
+      content = <ProfileSettingForm handleToggleBigForms={handleToggleBigForms} />;
       break;
     default:
       content = null;

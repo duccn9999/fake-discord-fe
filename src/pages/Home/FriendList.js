@@ -8,6 +8,7 @@ import {
   UPDATE_NOTIFICATION,
 } from "../../reducers/notificationsReducer";
 import { FaUserFriends } from "react-icons/fa";
+import useFriendsByUser from "../../hooks/getFriendsByUser"
 import $ from "jquery";
 import Friend from "./Friend";
 export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
@@ -16,7 +17,6 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
   const dispatch = useDispatch();
   const [receiver, setReceiver] = useState("");
   const notifications = useSelector((state) => state.notifications.value);
-  const [friends, setFriends] = useState([]);
   const sendFriendRequest = async (e) => {
     e.preventDefault();
     const friendRequestModel = {
@@ -150,26 +150,7 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
     fetchNotifications();
   }, [user.userId, token, dispatch]);
   // Fetch friend list
-  useEffect(() => {
-    const fetchFriends = async () => {
-      await axios
-        .get(
-          `${COMMON.API_BASE_URL}UserFriends/GetFriendsByUser/${user.userId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
-        .then((response) => {
-          setFriends(response.data);
-        })
-        .catch((error) => {
-          console.error("Error fetching friends:", error);
-        });
-    };
-    fetchFriends();
-  }, [user.userId, token]);
+  const { friendsData } = useFriendsByUser(user.userId);
   return (
     <div
       className="friendList bgBlack3 textFaded"
@@ -267,7 +248,7 @@ export function FriendList({ userHub, setSelectedFriend, selectedFriend }) {
           </form>
         </div>
         <div className="friends">
-          {friends.map((friend, index) => {
+          {friendsData.map((friend, index) => {
             return (
               <Friend
                 key={index}

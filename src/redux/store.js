@@ -7,6 +7,9 @@ import storage from "redux-persist/lib/storage";
 import notificationsReducer from "../reducers/notificationsReducer";
 import mentionsCountReducer from "../reducers/mentionsReducer";
 import permissionsReducer from "../reducers/permissionsReducer";
+import friendsReducer from "../reducers/friendsReducer";
+import blockedFriendsReducer from "../reducers/blockedFriendsReducer";
+import membersReducer from "../reducers/membersReducer"
 const persistConfig = {
   key: "token",
   storage,
@@ -21,6 +24,9 @@ export const store = configureStore({
     notifications: notificationsReducer,
     mentions: mentionsCountReducer,
     permissions: permissionsReducer,
+    friends: friendsReducer,
+    blockedFriends: blockedFriendsReducer,
+    members: membersReducer
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -3,7 +3,7 @@ import { IoIosClose } from "react-icons/io";
 import { toast } from "react-toastify";
 import { MdOutlineDelete } from "react-icons/md";
 import axios from "axios";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import COMMON from "../../utils/Common";
 import useJwtDecode from "../../hooks/jwtDecode";
 import { SlOptions } from "react-icons/sl";
@@ -12,10 +12,10 @@ import { MdDeleteOutline } from "react-icons/md";
 import { FaArrowLeft } from "react-icons/fa";
 import $ from "jquery";
 import Modal from "../Modal/Modal";
-export function EditGroupChatForm({
-  handleToggleBigForms,
-  groupChat,
-}) {
+import NotificationModal from "../Modal/NotificationModal";
+import { useFetchUsersInGroupChat } from "../../hooks/fetchUsersInGroupChat";
+import { DELETE_MEMBER, GET_MEMBERS } from "../../reducers/membersReducer";
+export function EditGroupChatForm({ handleToggleBigForms, groupChat }) {
   const [toggle, setToggle] = useState(0);
   const [currentGroupChat, setCurrentGroupChat] = useState(groupChat);
   const [coverImage, setCoverImage] = useState(groupChat.coverImage);
@@ -25,7 +25,7 @@ export function EditGroupChatForm({
   const user = useJwtDecode(token);
   const [showModal, setShowModal] = useState(false);
   const [deleteAction, setDeleteAction] = useState(null);
-  const permissions = useSelector(state => state.permissions.value);
+  const permissions = useSelector((state) => state.permissions.value);
   const updateToggle = (value) => {
     setToggle(value);
   };
@@ -42,15 +42,15 @@ export function EditGroupChatForm({
   // update group chat
   const updateGroupChat = (e) => {
     e.preventDefault();
-    
+
     // Create FormData object for file upload
     const formData = new FormData();
-    
+
     // Add all fields to the FormData
     formData.append("groupChatId", groupChat.groupChatId);
     formData.append("name", !name ? groupChat.name : name);
     formData.append("userModified", user.userId);
-    
+
     // Only append coverImage if it exists (it's a File object)
     if (coverImage) {
       formData.append("coverImage", coverImage);
@@ -60,20 +60,20 @@ export function EditGroupChatForm({
       .put(`${COMMON.API_BASE_URL}GroupChats/Update`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data' // Important for file uploads
-        }
+          "Content-Type": "multipart/form-data", // Important for file uploads
+        },
       })
       .then((response) => {
         toast.success("Update success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
         setCurrentGroupChat(response.data);
       })
       .catch((err) => {
         toast.error(err.response?.data?.message || "Update failed", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -88,14 +88,14 @@ export function EditGroupChatForm({
       .then(() => {
         toast.success("Delete success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
         window.location.reload();
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -169,37 +169,54 @@ export function EditGroupChatForm({
             </div>
           </div>
           <div
-            className="tabContent w100"
+            className="tabContent w100 dFlex justifyCenter"
             style={{
               textAlign: "left",
               flexGrow: 1,
               padding: "0 2rem 0 2rem",
             }}
           >
-            <Overview
-              groupChat={groupChat}
-              toggle={toggle}
-              updateGroupChat={updateGroupChat}
-              coverImage={coverImage}
-              name={name}
-              setCoverImage={setCoverImage}
-              setName={setName}
-            />
-            <Roles
-              groupChat={groupChat}
-              toggle={toggle}
-              user={user}
-              token={token}
-              editRoleOptionToggle={editRoleOptionToggle}
-              setEditRoleOptionToggle={setEditRoleOptionToggle}
-              updateToggle={updateToggle}
-            />
-            <Invite
-              groupChat={groupChat}
-              toggle={toggle}
-              user={user}
-              token={token}
-            />
+            {(() => {
+              switch (toggle) {
+                case 1:
+                  return (
+                    <Overview
+                      groupChat={groupChat}
+                      toggle={toggle}
+                      updateGroupChat={updateGroupChat}
+                      coverImage={coverImage}
+                      name={name}
+                      setCoverImage={setCoverImage}
+                      setName={setName}
+                    />
+                  );
+                case 2:
+                  return (
+                    <Roles
+                      groupChat={groupChat}
+                      toggle={toggle}
+                      user={user}
+                      token={token}
+                      editRoleOptionToggle={editRoleOptionToggle}
+                      setEditRoleOptionToggle={setEditRoleOptionToggle}
+                      updateToggle={updateToggle}
+                    />
+                  );
+                case 3:
+                  return (
+                    <Invite
+                      groupChat={groupChat}
+                      toggle={toggle}
+                      user={user}
+                      token={token}
+                    />
+                  );
+                case 4:
+                  return <Members groupChat={groupChat} />;
+                default:
+                  return null;
+              }
+            })()}
           </div>
           <div>
             <button
@@ -212,12 +229,14 @@ export function EditGroupChatForm({
           </div>
         </div>
       </div>
-      <Modal
-        message="Are you sure you want to delete this group chat?"
-        show={showModal}
-        onClose={() => setShowModal(false)}
-        onConfirm={handleDelete}
-      />
+      {showModal ? (
+        <Modal
+          message="Are you sure you want to delete this group chat?"
+          show={showModal}
+          onClose={() => setShowModal(false)}
+          onConfirm={handleDelete}
+        />
+      ) : null}
     </>
   );
 }
@@ -359,132 +378,146 @@ function Roles({
       .then(() => {
         toast.success("Delete success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
+
+  console.log("roles");
+  if (toggle !== 2) return null;
   return (
-    <div className={`${toggle === 2 ? "dBlock" : "dNone"}`}>
-      <div className={`${editRoleOptionToggle === false ? "dBlock" : "dNone"}`}>
-        <h4>Roles</h4>
-        <p>Use roles to group your group chat and assign permissions.</p>
-        {/* roles search */}
-        <div className="dFlex">
-          <form style={{ width: "500px" }}>
-            <div className="formGroup dFlex">
-              <input
-                id="keyword"
-                placeholder="Enter keyword to searching for roles"
-              />
-            </div>
-          </form>
-          <button
-            className="bgSuccess textFaded btn"
-            onClick={() => {
-              setRole(null);
-              setEditRoleOptionToggle(true);
-            }}
-          >
-            Create Roles
-          </button>
-        </div>
-        {/* role list */}
-        <table className="w100">
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>Total</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((role, index) => (
-              <tr key={index}>
-                <td>{role.roleName}</td>
-                <td>{role.total}</td>
-                <td className="dFlex" style={{ flexDirection: "row" }}>
-                  <div>
-                    <button
-                      className="btn"
-                      style={{ padding: 5 }}
-                      onClick={() => {
-                        $(`.optionsBtn${role.roleId}`).toggle();
-                      }}
-                    >
-                      <SlOptions />
-                    </button>
-                    <div
-                      className={`optionsBtn${role.roleId} posAbsolute`}
-                      style={{ display: "none", zIndex: 1 }}
-                    >
-                      <button
-                        className="btn bgPrimary textFaded dBlock"
-                        style={{ padding: 5 }}
-                        onClick={() => {
-                          setEditRoleOptionToggle(true);
-                          getRole(role.roleId);
-                        }}
-                      >
-                        <FaRegEdit />
-                      </button>
-                      <button
-                        className="btn bgDanger textFaded"
-                        style={{ padding: 5 }}
-                        onClick={() =>
-                          confirmDelete(() => deleteRole(role.roleId))
-                        }
-                      >
-                        <MdDeleteOutline />
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className={`${editRoleOptionToggle === true ? "dBlock" : "dNone"}`}>
-        <h4>Edit roles</h4>
-        <div className="dFlex" style={{ gap: "16px" }}>
-          <div id="left">
-            <h4
-              style={{ cursor: "pointer" }}
-              className="dFlex alignCenter justifyFlexStart"
+    <div className="dBlock" style={{ flexGrow: 1 }}>
+      {editRoleOptionToggle === false ? (
+        <>
+          <h4>Roles</h4>
+          <p>Use roles to group your group chat and assign permissions.</p>
+          {/* roles search */}
+          <div className="dFlex">
+            <form style={{ width: "500px" }}>
+              <div className="formGroup dFlex">
+                <input
+                  id="keyword"
+                  placeholder="Enter keyword to searching for roles"
+                />
+              </div>
+            </form>
+            <button
+              className="bgSuccess textFaded btn"
               onClick={() => {
-                updateToggle(2);
-                setEditRoleOptionToggle(false);
+                setEditRoleOptionToggle(true);
+                setRole(null);
               }}
             >
-              <FaArrowLeft />
-              Back
-            </h4>
+              Create Roles
+            </button>
           </div>
-          <div id="right">
-            <h4>{role ? "Edit role" : "Create role"}</h4>
-            <RoleTabs role={role} groupChat={groupChat} />
+          {/* role list */}
+          <table
+            className="w100"
+            border="1"
+            cellPadding="8"
+            cellSpacing="0"
+            style={{ width: "100%", borderCollapse: "collapse" }}
+          >
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {roles.map((role, index) => (
+                <tr key={index}>
+                  <td>{role.roleName}</td>
+                  <td>{role.total}</td>
+                  <td className="dFlex" style={{ flexDirection: "row" }}>
+                    <div>
+                      <button
+                        className="btn"
+                        style={{ padding: 5 }}
+                        onClick={() => {
+                          $(`.optionsBtn${role.roleId}`).toggle();
+                        }}
+                      >
+                        <SlOptions />
+                      </button>
+                      <div
+                        className={`optionsBtn${role.roleId} posAbsolute`}
+                        style={{ display: "none", zIndex: 1 }}
+                      >
+                        <button
+                          className="btn bgPrimary textFaded dBlock"
+                          style={{ padding: 5 }}
+                          onClick={() => {
+                            setEditRoleOptionToggle(true);
+                            getRole(role.roleId);
+                          }}
+                        >
+                          <FaRegEdit />
+                        </button>
+                        <button
+                          className="btn bgDanger textFaded"
+                          style={{ padding: 5 }}
+                          onClick={() =>
+                            confirmDelete(() => deleteRole(role.roleId))
+                          }
+                        >
+                          <MdDeleteOutline />
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <>
+          <h4>Edit roles</h4>
+          <div className="dFlex" style={{ gap: "16px" }}>
+            <div id="left">
+              <button
+                className="btn dFlex alignCenter justifyFlexStart"
+                onClick={() => {
+                  updateToggle(2);
+                  setEditRoleOptionToggle(false);
+                }}
+              >
+                <FaArrowLeft />
+                Back
+              </button>
+            </div>
+            <div id="right">
+              <h4 style={{ marginTop: 0 }}>
+                {role ? "Edit role" : "Create role"}
+              </h4>
+              <RoleTabs role={role} groupChat={groupChat} />
+            </div>
           </div>
-        </div>
-      </div>
-      <Modal
-        message="Are you sure you want to delete this role?"
-        show={showModal}
-        onClose={() => setShowModal(false)}
-        onConfirm={handleDelete}
-      />
+        </>
+      )}
+      {showModal ? (
+        <Modal
+          message="Are you sure you want to delete this role?"
+          show={showModal}
+          onClose={() => setShowModal(false)}
+          onConfirm={handleDelete}
+        />
+      ) : null}
     </div>
   );
 }
 // role tabs
 function RoleTabs({ role, groupChat }) {
   const [toggleRoleTabs, setToggleRoleTabs] = useState(1);
-
   const renderContent = () => {
     switch (toggleRoleTabs) {
       case 1:
@@ -492,7 +525,7 @@ function RoleTabs({ role, groupChat }) {
       case 2:
         return <Permissions role={role} />;
       case 3:
-        return <ManageMembers role={role} groupChat={groupChat} />;
+        return <AssignRole role={role} groupChat={groupChat} />;
       default:
         return null;
     }
@@ -501,17 +534,38 @@ function RoleTabs({ role, groupChat }) {
   return (
     <div id="roleTabs">
       <div id="roleTabsOption" className="dFlex">
-        <button className="btn" onClick={() => setToggleRoleTabs(1)}>
+        <div
+          className="btn bgPrimary"
+          style={{
+            padding: "10px",
+            cursor: "pointer",
+          }}
+          onClick={() => setToggleRoleTabs(1)}
+        >
           Display
-        </button>
+        </div>
         {role && (
           <>
-            <button className="btn" onClick={() => setToggleRoleTabs(2)}>
+            <div
+              className="btn bgPrimary"
+              style={{
+                padding: "10px",
+                cursor: "pointer",
+              }}
+              onClick={() => setToggleRoleTabs(2)}
+            >
               Permissions
-            </button>
-            <button className="btn" onClick={() => setToggleRoleTabs(3)}>
+            </div>
+            <div
+              className="btn bgPrimary"
+              style={{
+                padding: "10px",
+                cursor: "pointer",
+              }}
+              onClick={() => setToggleRoleTabs(3)}
+            >
               Manage members
-            </button>
+            </div>
           </>
         )}
       </div>
@@ -532,6 +586,11 @@ function Display({ role, groupChat }) {
       setColor(role.color || "#000000");
       $("#roleName").val(role.roleName);
       $("#roleColor").val(role.color);
+    } else {
+      setRoleName("");
+      setColor("#000000");
+      $("#roleName").val("");
+      $("#roleColor").val("#000000");
     }
   }, [role]);
   // Create roles
@@ -553,13 +612,13 @@ function Display({ role, groupChat }) {
       .then(() => {
         toast.success("Role created success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -582,13 +641,13 @@ function Display({ role, groupChat }) {
       .then(() => {
         toast.success("Role updated success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -630,7 +689,6 @@ function Permissions({ role }) {
   const token = useSelector((state) => state.token.value);
   const [permissions, setPermissions] = useState([]);
   const [rolePermissions, setRolePermissions] = useState([]);
-  const [permission, setPermission] = useState(null);
   // assign role
   const assignRolePermission = (permission) => {
     const rolePermissionModel = {
@@ -712,7 +770,6 @@ function Permissions({ role }) {
                 }`}
                 onClick={() => {
                   togglePermission(permission);
-                  setPermission(permission);
                   assignRolePermission(permission);
                 }}
               >
@@ -731,7 +788,7 @@ function Permissions({ role }) {
   );
 }
 
-function ManageMembers({ role, groupChat }) {
+function AssignRole({ role, groupChat }) {
   const token = useSelector((state) => state.token.value);
   const [userCountByEachRole, setUserCountByEachRole] = useState(null);
   const [usersByEachRole, setUsersByEachRole] = useState([]);
@@ -819,14 +876,14 @@ function ManageMembers({ role, groupChat }) {
         console.log(response);
         toast.success("Assign success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       })
       .catch((err) => {
         console.log(err);
         toast.error(err.response?.data?.message || "Failed to assign role!", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -903,6 +960,7 @@ function ManageMembers({ role, groupChat }) {
     </>
   );
 }
+// invite tab
 function Invite({ groupChat, toggle, token }) {
   const [inviteCode, setInviteCode] = useState(null);
   const [inviteLink, setInviteLink] = useState("");
@@ -949,6 +1007,375 @@ function Invite({ groupChat, toggle, token }) {
         </button>
       </div>
     </div>
+  );
+}
+// member tab
+function Members({ groupChat }) {
+  const [tab, setTab] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+  const [deleteAction, setDeleteAction] = useState(null);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalType, setModalType] = useState(0);
+  const [banReason, setBanReason] = useState("");
+  const handleDelete = () => {
+    if (deleteAction) {
+      deleteAction(); // Execute the stored function
+    }
+    setShowModal(false);
+  };
+  const handleDeleteInput = (input) => {
+    if (deleteAction) {
+      deleteAction(input); // Execute the stored function
+    }
+    setShowModal(false);
+  };
+  const handleModalOpen = (value) => {
+    setShowModal(value);
+  };
+  const handleModalMessage = (value) => {
+    setModalMessage(value);
+  };
+
+  const confirmDelete = (deleteFunc) => {
+    setDeleteAction(() => deleteFunc); // Store the function to call
+    setShowModal(true);
+  };
+
+  const handleModalType = (value) => {
+    setModalType(value);
+  };
+
+  const handleBanReason = (value) => {
+    setBanReason(value);
+  };
+
+  console.log("Members");
+  return (
+    <>
+      <div>
+        <h4>Members</h4>
+        <div className="dFlex" style={{ marginBottom: "1rem", gap: "8px" }}>
+          <div
+            className={`tab-item ${
+              tab === 1 ? "active bgPrimary textFaded" : ""
+            }`}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "4px",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+            onClick={() => setTab(1)}
+          >
+            Users
+          </div>
+          <div
+            className={`tab-item ${
+              tab === 2 ? "active bgPrimary textFaded" : ""
+            }`}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "4px",
+              cursor: "pointer",
+              userSelect: "none",
+            }}
+            onClick={() => setTab(2)}
+          >
+            Blocked Users
+          </div>
+        </div>
+        {tab === 1 && (
+          <UsersTab
+            handleModalType={handleModalType}
+            groupChat={groupChat}
+            handleDelete={handleDelete}
+            handleModalOpen={handleModalOpen}
+            handleModalMessage={handleModalMessage}
+            confirmDelete={confirmDelete}
+            handleBanReason={handleBanReason}
+          />
+        )}
+        {tab === 2 && (
+          <BlockedUsersTab
+            handleModalType={handleModalType}
+            groupChat={groupChat}
+            handleDelete={handleDelete}
+            handleModalOpen={handleModalOpen}
+            handleModalMessage={handleModalMessage}
+            confirmDelete={confirmDelete}
+          />
+        )}
+      </div>
+      {showModal ? (
+        modalType === 0 ? (
+          <Modal
+            message={modalMessage}
+            show={showModal}
+            onClose={() => setShowModal(false)}
+            onConfirm={handleDelete}
+          />
+        ) : (
+          <NotificationModal
+            message={modalMessage}
+            show={showModal}
+            onClose={() => setShowModal(false)}
+            onConfirm={(value) => handleDeleteInput(value)}
+          />
+        )
+      ) : null}
+    </>
+  );
+}
+
+function UsersTab(props) {
+  const token = useSelector((state) => state.token.value);
+  const members = useSelector((state) => state.members.value);
+  const dispatch = useDispatch();
+  const { usersInGroupChat, fetchUsersInGroupChat } =
+    useFetchUsersInGroupChat();
+  useEffect(() => {
+    fetchUsersInGroupChat(props.groupChat.groupChatId);
+  }, [props.groupChat.groupChatId]);
+
+  useEffect(() => {
+    if (usersInGroupChat) {
+      dispatch(GET_MEMBERS(usersInGroupChat));
+    }
+  }, [usersInGroupChat, dispatch]);
+
+  console.log("UsersTab");
+  const [search] = useState(""); // Search is not implemented
+  const kickUser = (userId) => {
+    axios
+      .delete(
+        `${COMMON.API_BASE_URL}GroupChats/KickMember/${userId}/${props.groupChat.groupChatId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        dispatch(DELETE_MEMBER(response.data));
+      })
+      .catch((err) => console.error(err));
+  };
+  const banMember = (userId, reason) => {
+    axios
+      .delete(`${COMMON.API_BASE_URL}GroupChats/banMember`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        data: {
+          groupChatId: props.groupChat.groupChatId,
+          userId: userId,
+          banReason: reason,
+        },
+      })
+      .then((response) => {
+        dispatch(DELETE_MEMBER(response.data));
+      })
+      .catch((err) => console.error(err));
+  };
+  return (
+    <>
+      <h1>Members</h1>
+      <div style={{ marginBottom: "1rem" }}>
+        <input
+          type="text"
+          placeholder="Search members..."
+          value={search}
+          readOnly
+          style={{ width: "250px", padding: "8px" }}
+        />
+      </div>
+      <table
+        className="w100"
+        border="1"
+        cellPadding="8"
+        cellSpacing="0"
+        style={{ width: "100%", borderCollapse: "collapse" }}
+      >
+        <thead>
+          <tr>
+            <th>Avatar</th>
+            <th>User Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members && members.length > 0 ? (
+            members.map((user) => (
+              <tr key={user.userId}>
+                <td>
+                  <img
+                    src={user.avatar}
+                    alt={user.userName}
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                    }}
+                  />
+                </td>
+                <td>{user.userName}</td>
+                <td>
+                  <button
+                    className="btn bgDanger textFaded"
+                    style={{ marginRight: "8px" }}
+                    onClick={() => {
+                      props.handleModalType(0);
+                      props.handleModalMessage(
+                        <>
+                          <p>
+                            Do you want to kick this user?{" "}
+                            <small>
+                              Please provide a reason why this user should be
+                              kicked."
+                            </small>
+                          </p>
+                        </>
+                      );
+                      props.confirmDelete(() => {
+                        kickUser(user.userId);
+                      });
+                    }}
+                  >
+                    Kick
+                  </button>
+                  <button
+                    className="btn bgWarning textFaded"
+                    onClick={() => {
+                      props.handleModalType(1);
+                      props.handleBanReason(""); // Clear previous input
+                      props.handleModalMessage("Do you want to ban this user?");
+                      props.confirmDelete((inputValue) => {
+                        banMember(user.userId, inputValue);
+                      });
+                    }}
+                  >
+                    Ban
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={3}>No members found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+function BlockedUsersTab(props) {
+  const token = useSelector((state) => state.token.value);
+  const dispatch = useDispatch();
+  const members = useSelector((state) => state.members.value);
+  const [search] = useState(""); // Search is not implemented
+  console.log("BlockedUsersTab");
+  useEffect(() => {
+    axios
+      .get(
+        `${COMMON.API_BASE_URL}GroupChats/GetBlockedUsers/${props.groupChat.groupChatId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+      .then((response) => {
+        dispatch(GET_MEMBERS(response.data));
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }, [props.groupChat.groupChatId, token, dispatch]);
+  const unBlockUser = (blackListId) => {
+    axios
+      .delete(`${COMMON.API_BASE_URL}GroupChats/UnblockUser/${blackListId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      .then((response) => {
+        dispatch(DELETE_MEMBER(response.data));
+      })
+      .catch((err) => console.error(err));
+  };
+  return (
+    <>
+      <h1>Blocked Users</h1>
+      <div style={{ marginBottom: "1rem" }}>
+        <input
+          type="text"
+          placeholder="Search members..."
+          value={search}
+          readOnly
+          style={{ width: "250px", padding: "8px" }}
+        />
+      </div>
+      <table
+        className="w100"
+        border="1"
+        cellPadding="8"
+        cellSpacing="0"
+        style={{ width: "100%", borderCollapse: "collapse" }}
+      >
+        <thead>
+          <tr>
+            <th>Avatar</th>
+            <th>User Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {members && members.length > 0 ? (
+            members.map((user) => (
+              <tr key={user.userId}>
+                <td>
+                  <img
+                    src={user.avatar}
+                    alt={user.userName}
+                    style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                    }}
+                  />
+                </td>
+                <td>{user.userName}</td>
+                <td>
+                  <button
+                    className="btn bgSuccess textFaded"
+                    onClick={() => {
+                      props.handleModalType(0);
+                      props.handleModalMessage(
+                        <>
+                          <p>Do you want to unblock this user?</p>
+                        </>
+                      );
+                      props.confirmDelete(() => {
+                        unBlockUser(user.blackListId);
+                      });
+                    }}
+                  >
+                    Unblock
+                  </button>
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={3}>No blocked users found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </>
   );
 }
 export default EditGroupChatForm;

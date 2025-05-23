@@ -147,6 +147,10 @@ input {
 .bgWarning {
   background-color: #f0ad4e;
 }
+.bgWarning:hover {
+  color: #f0ad4e;
+  background-color: #f7f7f7;
+}
 .bgInverse {
   background-color: #292b2c;
 }
@@ -315,6 +319,22 @@ button:hover {
 #channelProfileOption div:hover {
   background-color: #404249;
 }
+
+#userProfileOption div {
+  cursor: pointer;
+  padding: 10px;
+}
+#userProfileOption div:hover {
+  background-color: #404249;
+}
+
+#adminProfileOption div {
+  cursor: pointer;
+  padding: 10px;
+}
+#adminProfileOption div:hover {
+  background-color: #404249;
+}
 table {
   border-collapse: collapse;
 }
@@ -366,5 +386,19 @@ table {
 }
 .suggestionItem.selected {
   background-color: #282829;
+}
+
+.editableField{
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #313338;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(78,84,200,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+  display: inline-block;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 

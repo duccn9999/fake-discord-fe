@@ -13,6 +13,10 @@ import { useMentionHandler } from "../../hooks/userMentionHandler";
 import { useUpdateLastSeenMessage } from "../../hooks/updateLastSeenMessage";
 import { useMarkMentionsAsRead } from "../../hooks/markMessageAsRead";
 import { ChannelHubContext } from "../../Contexts/channelHubContext";
+import {
+  fetchRolesByGroupChat,
+  useFetchRolesByGroupChat,
+} from "../../hooks/fetchRolesByGroupChat";
 import useInfiniteScroll from "../../hooks/infiniteScroll";
 export function MessagesContainer({ channel, groupChatId }) {
   const token = useSelector((state) => state.token.value);
@@ -26,6 +30,8 @@ export function MessagesContainer({ channel, groupChatId }) {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const updateLastSeenMessage = useUpdateLastSeenMessage();
   const markMentionsAsRead = useMarkMentionsAsRead();
+  const { rolesByGroupChat, fetchRolesByGroupChat } =
+    useFetchRolesByGroupChat();
   const messagesRef = useRef(null);
   const channelHub = useContext(ChannelHubContext);
   // get last seen message
@@ -44,6 +50,16 @@ export function MessagesContainer({ channel, groupChatId }) {
         setLastMessage(response.data || null);
       });
   }, [token, user.userId, channel.channelId]);
+  // get messages
+  const { items, loading, hasMore, loaderRef } = useInfiniteScroll(
+    `${COMMON.API_BASE_URL}Messages/GetMessagesPagination`,
+    channel.channelId
+  );
+  useEffect(() => {
+    if (items) {
+      dispatch(GET_MESSAGES(items));
+    }
+  }, [items, dispatch]);
   // preview attachments
   const handleAttachmentUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -85,37 +101,32 @@ export function MessagesContainer({ channel, groupChatId }) {
 
   // handle input change
   const usersInGroupChat = useGetUsersInGroupChatWithRoles(groupChatId);
-  const roles = useMemo(
-    () => Array.from(new Set(usersInGroupChat.flatMap((user) => user.roles))),
-    [usersInGroupChat]
-  );
+  useEffect(() => {
+    if (groupChatId) {
+      fetchRolesByGroupChat(groupChatId);
+    }
+  }, [groupChatId]);
   const combinedSuggestions = useMemo(
     () => [
-      ...roles,
+      ...rolesByGroupChat,
       ...usersInGroupChat.map((user) => ({
         userId: user.userId,
         userName: user.userName,
         avatar: user.avatar,
       })),
     ],
-    [roles, usersInGroupChat]
+    [rolesByGroupChat, usersInGroupChat]
   );
 
   const {
     message,
-    setMessage,
-    cursorPosition,
-    setCursorPosition,
-    mentionStart,
-    setMentionStart,
-    suggestionFilter,
     showSuggestions,
     suggestions,
     mentionUsers,
     handleInputChange,
     insertMention,
     inputRef,
-  } = useMentionHandler(roles, usersInGroupChat);
+  } = useMentionHandler(rolesByGroupChat, usersInGroupChat);
 
   // make scrollbar at the bottom by default
   useEffect(() => {
@@ -129,8 +140,9 @@ export function MessagesContainer({ channel, groupChatId }) {
       const isAtBottom =
         chatContainer.scrollHeight - chatContainer.scrollTop <=
         chatContainer.clientHeight + 5;
-        console.log("isAtBottom: ", isAtBottom);
-      if (isAtBottom && messages.length >= 0) {
+      console.log("isAtBottom: ", chatContainer.scrollHeight);
+      if (isAtBottom && messages.length > 0) {
+        console.log("message length: ", message.length);
         const newestId = messages[messages.length - 1].messageId;
         if (!lastMessage || newestId !== lastMessage.messageId) {
           // update the last seen message
@@ -181,22 +193,6 @@ export function MessagesContainer({ channel, groupChatId }) {
       }
     }
   };
-  // Display messages
-  useEffect(() => {
-    axios
-      .get(`${COMMON.API_BASE_URL}Messages/GetMessages/${channel.channelId}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then((response) => {
-        dispatch(GET_MESSAGES(response.data));
-      });
-  }, [token, channel.channelId, dispatch]);
-  // use infinite scroll hook here
-  // const { items } = useInfiniteScroll(messages, false);
-
   // Add message
   const sendMessage = async () => {
     const messageForm = new FormData();
@@ -259,16 +255,23 @@ export function MessagesContainer({ channel, groupChatId }) {
         ref={messagesRef}
       >
         <div style={{ flexGrow: 1 }}></div>
-        {messages?.slice().map((message, index) => (
-          <Message
-            key={index}
-            messageValue={message}
-            groupChatId={groupChatId}
-            suggestions={combinedSuggestions}
-            roles={roles}
-            usersInGroupChat={usersInGroupChat}
-          />
-        ))}
+        {hasMore && (
+          <div ref={loaderRef} style={{ height: 1, visibility: "hidden" }} />
+        )}
+        {loading && <div className="loading">Loading more...</div>}
+        {messages
+          .slice()
+          // .reverse()
+          .map((message, index) => (
+            <Message
+              key={index}
+              messageValue={message}
+              groupChatId={groupChatId}
+              suggestions={combinedSuggestions}
+              roles={rolesByGroupChat}
+              usersInGroupChat={usersInGroupChat}
+            />
+          ))}
       </div>
       <div className="posSticky" style={{ bottom: 0 }}>
         <div

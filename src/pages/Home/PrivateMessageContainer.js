@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useContext } from "react";
 import { MdOutlineUploadFile } from "react-icons/md";
 import $ from "jquery";
 import axios from "axios";
@@ -8,7 +8,9 @@ import useJwtDecode from "../../hooks/jwtDecode";
 import COMMON from "../../utils/Common";
 import PrivateMessage from "./PrivateMessage";
 import { GET_MESSAGES } from "../../reducers/messagesReducer";
-const PrivateMessageContainer = ({ friend, userHub }) => {
+import  useInfiniteScroll2Params from "../../hooks/infiniteScroll2Params";
+import { UserHubContext } from "../../Contexts/userHubContext";
+const PrivateMessageContainer = ({ friend }) => {
   const [message, setMessage] = useState("");
   const [previewAttachments, setPreviewAttachments] = useState([]);
   // Store the actual file objects separately from the preview URLs
@@ -18,6 +20,7 @@ const PrivateMessageContainer = ({ friend, userHub }) => {
   const user = useJwtDecode(token);
   const messagesRef = useRef(null);
   const dispatch = useDispatch();
+  const userHub = useContext(UserHubContext);
   // make scrollbar at the bottom by default
   useEffect(() => {
     if (messagesRef.current) {
@@ -43,24 +46,15 @@ const PrivateMessageContainer = ({ friend, userHub }) => {
   };
 
   // get messages
+  const { items, loading, hasMore, loaderRef } = useInfiniteScroll2Params(
+    `${COMMON.API_BASE_URL}PrivateMessages/GetPrivateMsgesPagination`,
+    { sender: friend.userId1, receiver: friend.userId2 }
+  );
   useEffect(() => {
-    axios
-      .get(
-        `${COMMON.API_BASE_URL}PrivateMessages/GetPrivateMsgesPagination/${friend.userId1}/${friend.userId2}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      .then((response) => {
-        dispatch(GET_MESSAGES(response.data));
-      })
-      .catch((err) => {
-        Error(err);
-      });
-  }, [token, friend.userId1, friend.userId2, dispatch]);
+    if (items) {
+      dispatch(GET_MESSAGES(items));
+    }
+  }, [items, dispatch]);
 
   // send messages
   const sendMessage = async (e) => {
@@ -136,8 +130,12 @@ const PrivateMessageContainer = ({ friend, userHub }) => {
         ref={messagesRef}
       >
         <div style={{ flexGrow: 1 }}></div>
+        {hasMore && (
+          <div ref={loaderRef} style={{ height: 1, visibility: "hidden" }} />
+        )}
+        {loading && <div className="loading">Loading more...</div>}
         <div className="msgList" style={{ width: "100%" }}>
-          {messages.map((message, index) => {
+          {messages.slice().map((message, index) => {
             return (
               <PrivateMessage key={index} message={message} userHub={userHub} />
             );

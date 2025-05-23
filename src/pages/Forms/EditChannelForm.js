@@ -35,14 +35,14 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
       .then((response) => {
         toast.success("Update success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
         setCurrentChannel(response.data);
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -50,21 +50,21 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
   const deleteChannel = (id) => {
     axios
       .delete(`${COMMON.API_BASE_URL}Channels/DeleteChannel/${id}`, {
-        header: {
+        headers: {
           Authorization: `Bearer ${token}`,
         },
       })
       .then(() => {
         toast.success("Delete success", {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
         window.location.reload();
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
@@ -97,9 +97,6 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
             >
               Permissions
             </div>
-            <div className="bgBlack3 textFaded" onClick={() => updateToggle(3)}>
-              Invites
-            </div>
             <div
               className="bgBlack3 textFaded dFlex alignCenter justifyCenter"
               onClick={() => deleteChannel(currentChannel.channelId)}
@@ -117,21 +114,25 @@ export function EditChannelForm({ handleToggleBigForms, channel }) {
             padding: "0 2rem 0 2rem",
           }}
         >
-          <Overview
-            channel={currentChannel}
-            toggle={toggle}
-            setChannelName={setChannelName}
-            channelName={channelName}
-            updateChannel={updateChannel}
-          />
-          <Permissions
-            channel={currentChannel}
-            toggle={toggle}
-            rolesByGroupChat={rolesByGroupChat}
-            usersInGroupChat={usersInGroupChat}
-            updateToggle={updateToggle}
-          />
-          <Invite channel={currentChannel} toggle={toggle} />
+          {toggle === 1 && (
+            <Overview
+              channel={currentChannel}
+              toggle={toggle}
+              setChannelName={setChannelName}
+              channelName={channelName}
+              updateChannel={updateChannel}
+            />
+          )}
+
+          {toggle === 2 && (
+            <Permissions
+              channel={currentChannel}
+              toggle={toggle}
+              rolesByGroupChat={rolesByGroupChat}
+              usersInGroupChat={usersInGroupChat}
+              updateToggle={updateToggle}
+            />
+          )}
         </div>
         <div>
           <button
@@ -154,7 +155,7 @@ function Overview({
   updateChannel,
 }) {
   return (
-    <div className={`${toggle === 1 ? "dBlock" : "dNone"}`}>
+    <div>
       <h4>Overview</h4>
       <div>
         <form
@@ -258,19 +259,19 @@ function Permissions({
       .then((response) => {
         toast.success(`${response.data.message}`, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
         updateToggle(1);
       })
       .catch((err) => {
         toast.error(err, {
           position: "top-right",
-          autoClose: 5000,
+          autoClose: 3000,
         });
       });
   };
   return (
-    <div className={`${toggle === 2 ? "dBlock" : "dNone"}`}>
+    <div>
       <h4>PERMISSIONS</h4>
       <form onSubmit={updatePrivateChannelPermissions}>
         <div style={{ textAlign: "left" }}>
@@ -334,13 +335,6 @@ function Permissions({
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-function Invite({ channel, toggle }) {
-  return (
-    <div className={`${toggle === 3 ? "dBlock" : "dNone"}`}>
-      <h4>Invite</h4>
     </div>
   );
 }

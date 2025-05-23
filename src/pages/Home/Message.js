@@ -166,7 +166,7 @@ export function Message({
           alt="avt"
         />
         <h3 style={{ marginTop: 0 }}>
-          {messageValue.username} <small>{messageValue.dateCreated}</small>
+          {messageValue.username} <small>{messageValue.dateCreated} {messageValue.messageId}</small>
         </h3>
         <p className="dNone">{messageValue.messageId}</p>
         {(user.username === messageValue.username ||

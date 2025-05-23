@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useSelector } from "react-redux";
 
-function useInfiniteScroll(api, q) {
+function useInfiniteScroll2Params(api, q) {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,12 +20,12 @@ function useInfiniteScroll(api, q) {
     setPage(1);
     setItems([]);
     setHasMore(true);
-  }, [api, q]);
+  }, [api, q.sender, q.receiver]);
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await axios.get(`${api}/${q}`, {
+        const response = await axios.get(`${api}/${q.sender}/${q.receiver}`, {
           params: { page: pageRef.current, itemsPerPage },
           headers: {
             Authorization: `Bearer ${token}`,
@@ -52,7 +52,7 @@ function useInfiniteScroll(api, q) {
       }
     };
     fetchData();
-  }, [page, api, token]);
+  }, [page, api, token, q.sender, q.receiver]);
   // Intersection Observer for infinite scrolling
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -78,4 +78,4 @@ function useInfiniteScroll(api, q) {
   return { items, loading, hasMore, loaderRef };
 }
 
-export default useInfiniteScroll;
+export default useInfiniteScroll2Params;
